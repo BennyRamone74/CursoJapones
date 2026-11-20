@@ -1,0 +1,2270 @@
+Aquí tienes la aplicación web completa en un único archivo index.html
+autocontenido, diseñada específicamente con una interfaz minimalista japonesa y
+optimizada para iPad (iPadOS Safari, toque con dedo y Apple Pencil), así como
+dispositivos móviles y escritorio.
+
+Cómo usarla en tu iPad
+
+1.  Guarda el siguiente código como index.html.
+2.  Ábrelo directamente en Safari (desde iCloud Drive / Archivos, o alojándolo
+    en GitHub Pages / Netlify para aprovechar al 100% el micrófono vía HTTPS en
+    iPadOS).
+3.  (Opcional) En Safari, pulsa el botón Compartir → Añadir a pantalla de inicio
+    para usarla a pantalla completa como una app nativa.
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Nihongo 4W" />
+  <title>Nihongo 4W — Curso de Japonés desde Cero (4 Semanas)</title>
+
+  <!-- Google Fonts: Inter & Noto Sans JP -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            vermilion: {
+              DEFAULT: '#E63946',
+              dark: '#C82835',
+              light: '#FDECEF',
+            },
+            indigojp: {
+              DEFAULT: '#1D3557',
+              dark: '#13243C',
+              light: '#EBF0F7',
+            },
+            washi: '#FAF9F6',
+            ink: '#1A1D24',
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            jp: ['"Noto Sans JP"', 'sans-serif'],
+          },
+          boxShadow: {
+            soft: '0 4px 20px -2px rgba(29, 53, 87, 0.07)',
+            card: '0 2px 10px rgba(29, 53, 87, 0.05)',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      background-color: #FAF9F6;
+      color: #1A1D24;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: none;
+    }
+
+    .font-jp {
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+
+    /* Crítico para dibujo fluido en iPad (dedo y Apple Pencil) */
+    #drawing-canvas {
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      cursor: crosshair;
+    }
+
+    .canvas-container {
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      background-color: #FFFFFF;
+      background-image:
+        linear-gradient(to right, rgba(29, 53, 87, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(29, 53, 87, 0.06) 1px, transparent 1px);
+      background-size: 25% 25%;
+    }
+
+    /* Sello tradicional japonés (Hanko) */
+    .hanko-stamp {
+      border: 2px solid #E63946;
+      color: #E63946;
+      border-radius: 6px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-weight: 700;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Animación de pulso para grabación */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.65); }
+      70% { transform: scale(1); box-shadow: 0 0 0 14px rgba(230, 57, 70, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
+    }
+    .recording-pulse {
+      animation: pulse-ring 1.4s infinite;
+    }
+
+    /* Ocultar scrollbar horizontal en pestañas */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Transiciones suaves */
+    .fade-in {
+      animation: fadeIn 0.22s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Barra de Navegación Superior -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80" style="padding-top: var(--safe-top);">
+    <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <button id="btn-back-dashboard" onclick="App.goDashboard()" class="hidden items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-indigojp font-semibold text-sm transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          <span class="hidden sm:inline">Inicio</span>
+        </button>
+
+        <button onclick="App.goDashboard()" class="flex items-center gap-2.5 text-left group">
+          <span class="hanko-stamp w-9 h-9 text-sm shrink-0 group-hover:bg-vermilion group-hover:text-white transition">日本</span>
+          <div class="truncate">
+            <h1 class="font-extrabold text-indigojp text-base sm:text-lg leading-tight tracking-tight">Nihongo 4W</h1>
+            <p class="text-[11px] text-slate-500 font-medium hidden sm:block">Japonés desde cero · Hiragana, Katakana y Base</p>
+          </div>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+        <!-- Interruptor Global de Romaji -->
+        <button id="global-romaji-btn" onclick="App.toggleRomaji()" class="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 text-xs sm:text-sm font-semibold text-indigojp transition" title="Mostrar u ocultar Romaji en toda la app">
+          <span id="romaji-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          <span id="romaji-label">Romaji: ON</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenido Principal -->
+  <main id="app-root" class="flex-1 max-w-5xl w-full mx-auto px-4 py-6 pb-20"></main>
+
+  <!-- Modal de Confirmación para Reiniciar Progreso -->
+  <div id="reset-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-indigojp/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 fade-in">
+      <div class="w-12 h-12 rounded-2xl bg-vermilion-light text-vermilion flex items-center justify-center mb-4">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      </div>
+      <h3 class="text-lg font-bold text-indigojp mb-2">¿Reiniciar todo tu progreso?</h3>
+      <p class="text-sm text-slate-600 mb-6">Se borrarán todos los caracteres practicados, lecciones de gramática completadas, calificaciones de pronunciación y puntajes de quizzes. Esta acción no se puede deshacer.</p>
+      <div class="flex items-center justify-end gap-3">
+        <button onclick="App.closeResetModal()" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Cancelar</button>
+        <button onclick="App.confirmResetProgress()" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-vermilion hover:bg-vermilion-dark transition">Sí, reiniciar todo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notificación Toast -->
+  <div id="toast-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col gap-2 w-max max-w-[90vw]"></div>
+
+  <script>
+    /* =========================================================================
+       1. DATOS PEDAGÓGICOS COMPLETOS (4 SEMANAS - 100% POBLADO)
+       ========================================================================= */
+    const COURSE_DATA = {
+      dakutenTable: [
+        { base: 'か', daku: 'が', romaji: 'ga', type: 'dakuten' },
+        { base: 'き', daku: 'ぎ', romaji: 'gi', type: 'dakuten' },
+        { base: 'く', daku: 'ぐ', romaji: 'gu', type: 'dakuten' },
+        { base: 'け', daku: 'げ', romaji: 'ge', type: 'dakuten' },
+        { base: 'こ', daku: 'ご', romaji: 'go', type: 'dakuten' },
+        { base: 'さ', daku: 'ざ', romaji: 'za', type: 'dakuten' },
+        { base: 'し', daku: 'じ', romaji: 'ji', type: 'dakuten' },
+        { base: 'す', daku: 'ず', romaji: 'zu', type: 'dakuten' },
+        { base: 'せ', daku: 'ぜ', romaji: 'ze', type: 'dakuten' },
+        { base: 'そ', daku: 'ぞ', romaji: 'zo', type: 'dakuten' },
+        { base: 'た', daku: 'だ', romaji: 'da', type: 'dakuten' },
+        { base: 'ち', daku: 'ぢ', romaji: 'ji', type: 'dakuten' },
+        { base: 'つ', daku: 'づ', romaji: 'zu', type: 'dakuten' },
+        { base: 'て', daku: 'で', romaji: 'de', type: 'dakuten' },
+        { base: 'と', daku: 'ど', romaji: 'do', type: 'dakuten' },
+        { base: 'は', daku: 'ば', romaji: 'ba', type: 'dakuten' },
+        { base: 'ひ', daku: 'び', romaji: 'bi', type: 'dakuten' },
+        { base: 'ふ', daku: 'ぶ', romaji: 'bu', type: 'dakuten' },
+        { base: 'へ', daku: 'べ', romaji: 'be', type: 'dakuten' },
+        { base: 'ほ', daku: 'ぼ', romaji: 'bo', type: 'dakuten' },
+        { base: 'は', daku: 'ぱ', romaji: 'pa', type: 'handakuten' },
+        { base: 'ひ', daku: 'ぴ', romaji: 'pi', type: 'handakuten' },
+        { base: 'ふ', daku: 'ぷ', romaji: 'pu', type: 'handakuten' },
+        { base: 'へ', daku: 'ぺ', romaji: 'pe', type: 'handakuten' },
+        { base: 'ほ', daku: 'ぽ', romaji: 'po', type: 'handakuten' },
+      ],
+      yoonTable: [
+        { kana: 'きゃ', romaji: 'kya' }, { kana: 'きゅ', romaji: 'kyu' }, { kana: 'きょ', romaji: 'kyo' },
+        { kana: 'しゃ', romaji: 'sha' }, { kana: 'しゅ', romaji: 'shu' }, { kana: 'しょ', romaji: 'sho' },
+        { kana: 'ちゃ', romaji: 'cha' }, { kana: 'ちゅ', romaji: 'chu' }, { kana: 'ちょ', romaji: 'cho' },
+        { kana: 'にゃ', romaji: 'nya' }, { kana: 'にゅ', romaji: 'nyu' }, { kana: 'にょ', romaji: 'nyo' },
+        { kana: 'ひゃ', romaji: 'hya' }, { kana: 'ひゅ', romaji: 'hyu' }, { kana: 'ひょ', romaji: 'hyo' },
+        { kana: 'みゃ', romaji: 'mya' }, { kana: 'みゅ', romaji: 'myu' }, { kana: 'みょ', romaji: 'myo' },
+        { kana: 'りゃ', romaji: 'rya' }, { kana: 'りゅ', romaji: 'ryu' }, { kana: 'りょ', romaji: 'ryo' },
+        { kana: 'ぎゃ', romaji: 'gya' }, { kana: 'ぎゅ', romaji: 'gyu' }, { kana: 'ぎょ', romaji: 'gyo' },
+        { kana: 'じゃ', romaji: 'ja' },  { kana: 'じゅ', romaji: 'ju' },  { kana: 'じょ', romaji: 'jo' },
+        { kana: 'びゃ', romaji: 'bya' }, { kana: 'びゅ', romaji: 'byu' }, { kana: 'びょ', romaji: 'byo' },
+        { kana: 'ぴゃ', romaji: 'pya' }, { kana: 'ぴゅ', romaji: 'pyu' }, { kana: 'ぴょ', romaji: 'pyo' },
+      ],
+      katakanaLoanwords: [
+        { jp: 'コーヒー', romaji: 'kōhī', es: 'Café' },
+        { jp: 'タコス', romaji: 'takosu', es: 'Tacos' },
+        { jp: 'テレビ', romaji: 'terebi', es: 'Televisión' },
+        { jp: 'スマホ', romaji: 'sumaho', es: 'Smartphone' },
+        { jp: 'レストラン', romaji: 'resutoran', es: 'Restaurante' },
+        { jp: 'カメラ', romaji: 'kamera', es: 'Cámara' },
+        { jp: 'アイスクリーム', romaji: 'aisukurīmu', es: 'Helado' },
+        { jp: 'パン', romaji: 'pan', es: 'Pan (del portugués)' },
+        { jp: 'ホテル', romaji: 'hoteru', es: 'Hotel' },
+        { jp: 'サッカー', romaji: 'sakkā', es: 'Fútbol' },
+        { jp: 'アニメ', romaji: 'anime', es: 'Anime' },
+        { jp: 'メキシコ', romaji: 'mekishiko', es: 'México' },
+      ],
+      weeks: [
+        /* ============================ SEMANA 1 ============================ */
+        {
+          id: 1,
+          title: 'Semana 1: Cimientos y Hiragana (Parte 1)',
+          shortTitle: 'Hiragana 1 y Saludos',
+          subtitle: '25 caracteres (Vocales y filas K, S, T, N), reglas de pronunciación y saludos esenciales.',
+          badge: 'あ → の',
+          characters: [
+            { id: 'w1_a', char: 'あ', romaji: 'a', row: 'Vocales', strokes: 3, mnemonic: 'Parece una "A" con una antena o un acróbata haciendo un lazo.', example: 'あさ (asa) — Mañana' },
+            { id: 'w1_i', char: 'い', romaji: 'i', row: 'Vocales', strokes: 2, mnemonic: 'Dos líneas verticales como dos "i" gemelas o dos anguilas nadando juntas.', example: 'いぬ (inu) — Perro' },
+            { id: 'w1_u', char: 'う', romaji: 'u', row: 'Vocales', strokes: 2, mnemonic: 'Una oreja de perfil escuchando el sonido "uuu", o un boxeador doblado.', example: 'うみ (umi) — Mar' },
+            { id: 'w1_e', char: 'え', romaji: 'e', row: 'Vocales', strokes: 2, mnemonic: 'Un pájaro exótico corriendo con las alas abiertas ("¡Eee!").', example: 'えき (eki) — Estación' },
+            { id: 'w1_o', char: 'お', romaji: 'o', row: 'Vocales', strokes: 3, mnemonic: 'Un OVNI flotando con un pequeño punto (estrella) a la derecha.', example: 'おちゃ (ocha) — Té verde' },
+
+            { id: 'w1_ka', char: 'か', romaji: 'ka', row: 'Fila K', strokes: 3, mnemonic: 'Una cuchilla cortando ("KA-tana") con una chispa volando a la derecha.', example: 'かさ (kasa) — Paraguas' },
+            { id: 'w1_ki', char: 'き', romaji: 'ki', row: 'Fila K', strokes: 4, mnemonic: 'Parece una llave antigua ("Key" en inglés, sonido KI).', example: 'きた (kita) — Norte' },
+            { id: 'w1_ku', char: 'く', romaji: 'ku', row: 'Fila K', strokes: 1, mnemonic: 'El pico abierto de un pájaro cucú ("KU-kú").', example: 'くつ (kutsu) — Zapatos' },
+            { id: 'w1_ke', char: 'け', romaji: 'ke', row: 'Fila K', strokes: 3, mnemonic: 'Un barril de madera ("Keg") visto de frente, con dos tablas y una cruz.', example: 'けさ (kesa) — Esta mañana' },
+            { id: 'w1_ko', char: 'こ', romaji: 'ko', row: 'Fila K', strokes: 2, mnemonic: 'Dos lombrices o dos monedas ("KO-ins") apiladas en paralelo.', example: 'こえ (koe) — Voz' },
+
+            { id: 'w1_sa', char: 'さ', romaji: 'sa', row: 'Fila S', strokes: 3, mnemonic: 'Como き (ki) pero con solo una barra horizontal: una cara sonriendo ("SA-ludos").', example: 'さかな (sakana) — Pescado' },
+            { id: 'w1_shi', char: 'し', romaji: 'shi', row: 'Fila S', strokes: 1, mnemonic: 'Un anzuelo de pescar o una cola de sirena ("SHI-rena").', example: 'しろ (shiro) — Blanco' },
+            { id: 'w1_su', char: 'す', romaji: 'su', row: 'Fila S', strokes: 2, mnemonic: 'Un columpio haciendo un rizo hacia abajo ("SU-be y baja").', example: 'すし (sushi) — Sushi' },
+            { id: 'w1_se', char: 'せ', romaji: 'se', row: 'Fila S', strokes: 3, mnemonic: 'Una persona sentada de perfil ("SE-ntarse").', example: 'せかい (sekai) — Mundo' },
+            { id: 'w1_so', char: 'そ', romaji: 'so', row: 'Fila S', strokes: 1, mnemonic: 'Un zigzag cosiendo con aguja e hilo ("SO-brehilado").', example: 'そら (sora) — Cielo' },
+
+            { id: 'w1_ta', char: 'た', romaji: 'ta', row: 'Fila T', strokes: 4, mnemonic: 'Literalmente parecen las letras "t" y "a" (o "t"+"こ") una al lado de la otra.', example: 'たこ (tako) — Pulpo' },
+            { id: 'w1_chi', char: 'ち', romaji: 'chi', row: 'Fila T', strokes: 2, mnemonic: 'Parece el número 5 ("CHInco") con una sonrisa.', example: 'ちず (chizu) — Mapa' },
+            { id: 'w1_tsu', char: 'つ', romaji: 'tsu', row: 'Fila T', strokes: 1, mnemonic: 'Una ola gigante de TSU-nami curvándose.', example: 'つき (tsuki) — Luna' },
+            { id: 'w1_te', char: 'て', romaji: 'te', row: 'Fila T', strokes: 1, mnemonic: 'Una mano extendida de lado ("TE" significa mano en japonés) o la cola de un perro.', example: 'て (te) — Mano' },
+            { id: 'w1_to', char: 'と', romaji: 'to', row: 'Fila T', strokes: 2, mnemonic: 'Un dedo del pie con una espina clavada o un tornillo ("TO-rnillo").', example: 'とり (tori) — Pájaro' },
+
+            { id: 'w1_na', char: 'な', romaji: 'na', row: 'Fila N', strokes: 4, mnemonic: 'Un nudo atado al lado de una cruz ("NA-da se desata").', example: 'なつ (natsu) — Verano' },
+            { id: 'w1_ni', char: 'に', romaji: 'ni', row: 'Fila N', strokes: 3, mnemonic: 'Una rodilla ("Knee") doblada junto a dos líneas (こ).', example: 'にく (niku) — Carne' },
+            { id: 'w1_nu', char: 'ぬ', romaji: 'nu', row: 'Fila N', strokes: 2, mnemonic: 'Un plato de fideos ("NU-dles") enredados con un rizo final.', example: 'いぬ (inu) — Perro' },
+            { id: 'w1_ne', char: 'ね', romaji: 'ne', row: 'Fila N', strokes: 2, mnemonic: 'Un gato ("NE-ko") acurrucado con su colita enrollada al final.', example: 'ねこ (neko) — Gato' },
+            { id: 'w1_no', char: 'の', romaji: 'no', row: 'Fila N', strokes: 1, mnemonic: 'Parece el símbolo universal de prohibido ("NO pasar") en un solo trazo circular.', example: 'のむ (nomu) — Beber' },
+          ],
+          grammar: [
+            {
+              id: 'w1_g1',
+              title: '1. Reglas de Pronunciación: Vocales Largas',
+              summary: 'En japonés, alargar una vocal cambia el significado de la palabra. ¡Cada vocal dura un pulso rítmico exacto!',
+              explanation: 'Las 5 vocales (a, i, u, e, o) se pronuncian casi igual que en español (solo la "u" es menos redondeada). Cuando ves dos vocales seguidas, debes estirar el sonido al doble de tiempo. Atención: el sonido largo de "o" suele escribirse con う (ej. おはよう → ohayō) y el de "e" con い (ej. せんせい → sensei).',
+              examples: [
+                { jp: 'おばさん / おばあさん', romaji: 'obasan / obāsan', es: 'Tía / Abuela (¡una "a" extra cambia la palabra!)' },
+                { jp: 'おじさん / おじいさん', romaji: 'ojisan / ojīsan', es: 'Tío / Abuelo' },
+                { jp: 'おはよう', romaji: 'ohayō (ohayou)', es: 'Buenos días (informal) — "ou" suena como "oo"' },
+                { jp: 'せんせい', romaji: 'sensei (sensē)', es: 'Profesor/a — "ei" suena como "ee" suave' },
+              ]
+            },
+            {
+              id: 'w1_g2',
+              title: '2. Consonantes Dobles (La pequeña っ)',
+              summary: 'Una っ pequeña (sokuon) no se lee "tsu": indica una breve pausa de un tiempo antes de la siguiente consonante.',
+              explanation: 'Cuando aparece una っ más pequeña de lo normal antes de k, s, t o p, debes detener el aire por una fracción de segundo (un pulso) y luego soltar la consonante con fuerza. Piensa en cómo dices "ac-ción" en español.',
+              examples: [
+                { jp: 'きて / きって', romaji: 'kite / kitte', es: 'Ven / Sello postal (estampilla)' },
+                { jp: 'おと / おっと', romaji: 'oto / otto', es: 'Sonido / Esposo' },
+                { jp: 'ちょっと', romaji: 'chotto', es: 'Un poco / Un momento' },
+              ]
+            },
+            {
+              id: 'w1_g3',
+              title: '3. Saludos Básicos y Cortesía Diaria',
+              summary: 'Los pilares de la conversación diaria en Japón según la hora del día y la situación.',
+              explanation: 'Nota cultural: en japonés, la "u" al final de "gozaimasu" (ございます) casi no se pronuncia; suena cercano a "gozaimas". Además, こんにちは y こんばんは usan el carácter は leído como "wa".',
+              examples: [
+                { jp: 'おはようございます', romaji: 'Ohayou gozaimasu', es: 'Buenos días (cortés)' },
+                { jp: 'こんにちは', romaji: 'Konnichiwa', es: 'Hola / Buenas tardes' },
+                { jp: 'こんばんは', romaji: 'Konbanwa', es: 'Buenas noches (al llegar/saludar)' },
+                { jp: 'ありがとうございます', romaji: 'Arigatou gozaimasu', es: 'Muchas gracias (cortés)' },
+                { jp: 'すみません', romaji: 'Sumimasen', es: 'Disculpe / Perdón / Con permiso' },
+                { jp: 'さようなら', romaji: 'Sayounara', es: 'Adiós' },
+              ]
+            }
+          ],
+          pronunciation: [
+            { id: 'w1_p1', kana: 'おはようございます', romaji: 'Ohayou gozaimasu', meaning: 'Buenos días (cortés)', accept: ['おはようございます', 'おはよう御座います'], tip: 'Alarga ligeramente "yo-o" y suaviza la "u" final de gozaimasu.' },
+            { id: 'w1_p2', kana: 'こんにちは', romaji: 'Konnichiwa', meaning: 'Hola / Buenas tardes', accept: ['こんにちは', '今日は'], tip: 'Marca bien la doble "n" (kon-ni-chi-wa).' },
+            { id: 'w1_p3', kana: 'こんばんは', romaji: 'Konbanwa', meaning: 'Buenas noches', accept: ['こんばんは', '今晩は'], tip: 'La "n" antes de "b" suena suave, casi como "m" (kombanwa).' },
+            { id: 'w1_p4', kana: 'ありがとうございます', romaji: 'Arigatou gozaimasu', meaning: 'Muchas gracias', accept: ['ありがとうございます', '有難うございます', '有難う御座います'], tip: 'Cuida la vocal larga "tō" en arigatou y la "r" suave (como en "cara").' },
+            { id: 'w1_p5', kana: 'すみません', romaji: 'Sumimasen', meaning: 'Disculpe / Perdón', accept: ['すみません', '済みません'], tip: 'Mantén un ritmo uniforme en las cinco sílabas: su-mi-ma-se-n.' },
+            { id: 'w1_p6', kana: 'きって', romaji: 'Kitte', meaning: 'Estampilla / Sello postal', accept: ['きって', '切手'], tip: 'Haz una pequeña pausa marcada antes de la "t": ki-[pausa]-te.' },
+          ],
+          quiz: [
+            { type: 'reading', prompt: '¿Cómo se lee este carácter Hiragana?', target: 'あ', options: ['a', 'o', 'e', 'i'], answer: 0, explanation: 'あ se lee "a" (como en あさ, mañana).' },
+            { type: 'reading', prompt: '¿Cómo se lee el carácter つ?', target: 'つ', options: ['shi', 'tsu', 'ku', 'no'], answer: 1, explanation: 'つ se lee "tsu" (recuerda la ola de TSU-nami).' },
+            { type: 'audio', prompt: 'Escucha el audio y selecciona el carácter correcto:', audioText: 'す', options: ['す', 'さ', 'せ', 'そ'], answer: 0, explanation: 'El audio dice "su" (す).' },
+            { type: 'audio', prompt: 'Escucha el saludo y elige su significado en español:', audioText: 'おはようございます', options: ['Buenas noches', 'Muchas gracias', 'Buenos días', 'Disculpe'], answer: 2, explanation: 'おはようございます (Ohayou gozaimasu) significa "Buenos días".' },
+            { type: 'reading', prompt: '¿Cuál de estas palabras significa "Gato" (neko)?', target: 'neko', options: ['いぬ', 'ねこ', 'たこ', 'さかな'], answer: 1, explanation: 'ね (ne) + こ (ko) = ねこ (gato).' },
+            { type: 'grammar', prompt: '¿Qué función cumple una っ pequeña (como en きって)?', target: 'きって', options: ['Alarga la vocal anterior', 'Hace el sonido más bajo', 'Crea una breve pausa / consonante doble', 'Indica una pregunta'], answer: 2, explanation: 'La pequeña っ (sokuon) duplica la consonante siguiente creando una pausa de un tiempo.' },
+            { type: 'audio', prompt: 'Escucha y selecciona la escritura correcta:', audioText: 'すみません', options: ['こんにちは', 'すみません', 'こんばんは', 'さようなら'], answer: 1, explanation: 'すみません (Sumimasen) se usa para decir "disculpe" o "perdón".' },
+            { type: 'reading', prompt: 'Identifica la lectura de esta palabra: すし', target: 'すし', options: ['saki', 'sushi', 'tsuki', 'kasa'], answer: 1, explanation: 'す (su) + し (shi) = すし (sushi).' },
+          ]
+        },
+
+        /* ============================ SEMANA 2 ============================ */
+        {
+          id: 2,
+          title: 'Semana 2: Hiragana (Parte 2) y Presentación',
+          shortTitle: 'Hiragana 2 y Jikoshoukai',
+          subtitle: '21 caracteres restantes, sonidos dakuten/combinados y presentación personal completa.',
+          badge: 'は → ん',
+          hasDakutenChart: true,
+          characters: [
+            { id: 'w2_ha', char: 'は', romaji: 'ha', row: 'Fila H', strokes: 3, mnemonic: 'Una letra "H" mayúscula con un lazo elegante. (Como partícula suena "wa").', example: 'はな (hana) — Flor' },
+            { id: 'w2_hi', char: 'ひ', romaji: 'hi', row: 'Fila H', strokes: 1, mnemonic: 'Una gran sonrisa riendo "¡Hi-hi-hi!".', example: 'ひと (hito) — Persona' },
+            { id: 'w2_fu', char: 'ふ', romaji: 'fu', row: 'Fila H', strokes: 4, mnemonic: 'El Monte FU-ji con nubes a los lados. (Soplo suave entre F y H).', example: 'ふゆ (fuyu) — Invierno' },
+            { id: 'w2_he', char: 'へ', romaji: 'he', row: 'Fila H', strokes: 1, mnemonic: 'Una montaña puntiaguda apuntando hacia el cielo ("HE-aven").', example: 'へや (heya) — Habitación' },
+            { id: 'w2_ho', char: 'ほ', romaji: 'ho', row: 'Fila H', strokes: 4, mnemonic: 'Como は (ha) pero con techo doble (una "HO-gar" con sombrero).', example: 'ほん (hon) — Libro' },
+
+            { id: 'w2_ma', char: 'ま', romaji: 'ma', row: 'Fila M', strokes: 3, mnemonic: 'Un mástil de barco ("MA-stil") con dos velas horizontales.', example: 'まち (machi) — Ciudad' },
+            { id: 'w2_mi', char: 'み', romaji: 'mi', row: 'Fila M', strokes: 2, mnemonic: 'Parece el número 21 cursivo: "¡MI cumpleaños número 21!".', example: 'みず (mizu) — Agua' },
+            { id: 'w2_mu', char: 'む', romaji: 'mu', row: 'Fila M', strokes: 3, mnemonic: 'Una vaca haciendo "MUUU" con un rizo en la cola y un cuerno arriba.', example: 'むし (mushi) — Insecto' },
+            { id: 'w2_me', char: 'め', romaji: 'me', row: 'Fila M', strokes: 2, mnemonic: 'Un ojo ("ME" significa ojo en japonés) sin el rizo de ぬ.', example: 'め (me) — Ojo' },
+            { id: 'w2_mo', char: 'も', romaji: 'mo', row: 'Fila M', strokes: 3, mnemonic: 'Un anzuelo con dos lombrices para pescar "MO-re" (más) peces.', example: 'もも (momo) — Durazno' },
+
+            { id: 'w2_ya', char: 'や', romaji: 'ya', row: 'Fila Y', strokes: 3, mnemonic: 'La cabeza de un YAk con sus dos cuernos pequeños arriba.', example: 'やま (yama) — Montaña' },
+            { id: 'w2_yu', char: 'ゆ', romaji: 'yu', row: 'Fila Y', strokes: 2, mnemonic: 'Un pez nadando hacia la izquierda ("YU-ca" o pez en aguas termales ゆ).', example: 'ゆき (yuki) — Nieve' },
+            { id: 'w2_yo', char: 'よ', romaji: 'yo', row: 'Fila Y', strokes: 2, mnemonic: 'Un YO-yó colgando de un dedo con su cuerda enrollada abajo.', example: 'よる (yoru) — Noche' },
+
+            { id: 'w2_ra', char: 'ら', romaji: 'ra', row: 'Fila R', strokes: 2, mnemonic: 'Un conejo ("RA-bbit") sentado visto de perfil, parecido a un 5.', example: 'らいねん (rainen) — Próximo año' },
+            { id: 'w2_ri', char: 'り', romaji: 'ri', row: 'Fila R', strokes: 2, mnemonic: 'Dos cañas junto a un RÍ-o (la derecha más larga que la izquierda).', example: 'りんご (ringo) — Manzana' },
+            { id: 'w2_ru', char: 'る', romaji: 'ru', row: 'Fila R', strokes: 1, mnemonic: 'Un número 3 con un rizo de RU-bí en la punta.', example: 'くるま (kuruma) — Auto' },
+            { id: 'w2_re', char: 'れ', romaji: 're', row: 'Fila R', strokes: 2, mnemonic: 'Un reno corriendo hacia la derecha ("RE-no"), sin cerrar el rizo.', example: 'れきし (rekishi) — Historia' },
+            { id: 'w2_ro', char: 'ろ', romaji: 'ro', row: 'Fila R', strokes: 1, mnemonic: 'Como る (ru) pero le "RO-baron" su rubí: un simple 3.', example: 'ろく (roku) — Seis' },
+
+            { id: 'w2_wa', char: 'わ', romaji: 'wa', row: 'Fila W/N', strokes: 2, mnemonic: 'Un cisne blanco ("WA-ter") con su cuerpo redondeado a la derecha.', example: 'わたし (watashi) — Yo' },
+            { id: 'w2_wo', char: 'を', romaji: 'o (wo)', row: 'Fila W/N', strokes: 3, mnemonic: 'Un surfista saltando sobre una ola ("WO-w!"). Solo se usa como partícula.', example: 'みずを のむ — Beber agua' },
+            { id: 'w2_n', char: 'ん', romaji: 'n', row: 'Fila W/N', strokes: 1, mnemonic: 'Parece exactamente una letra "h" o "n" cursiva. ¡Única consonante sola!', example: 'にほん (nihon) — Japón' },
+          ],
+          grammar: [
+            {
+              id: 'w2_g1',
+              title: '1. Dakuten (゛), Handakuten (゜) y Combinaciones',
+              summary: '¡No necesitas memorizar 50 letras nuevas! Solo agregas dos comillas o un círculo a las letras que ya sabes.',
+              explanation: 'Al poner dos comillas (dakuten ゛) suavizas el sonido: K→G (か→が), S→Z (さ→ざ), T→D (た→だ), H→B (は→ば). Al poner un circulito (handakuten ゜) a la fila H se vuelve P (は→ぱ). Además, unir una sílaba terminada en "i" con ゃ, ゅ, ょ pequeños crea sonidos combinados como きゃ (kya), しゅ (shu), ちょ (cho). (Consulta la tabla interactiva con audio en la pestaña Escritura).',
+              examples: [
+                { jp: 'がくせい', romaji: 'gakusei', es: 'Estudiante (か + ゛ = が)' },
+                { jp: 'にほんご', romaji: 'nihongo', es: 'Idioma japonés (こ + ゛ = ご)' },
+                { jp: 'えんぴつ', romaji: 'enpitsu', es: 'Lápiz (ひ + ゜ = ぴ)' },
+                { jp: 'おちゃ / じゅぎょう', romaji: 'ocha / jugyou', es: 'Té verde / Clase (sonidos combinados)' },
+              ]
+            },
+            {
+              id: 'w2_g2',
+              title: '2. Estructura Fundamental: A は B です',
+              summary: 'El equivalente a "A es B". La partícula は marca el tema de la oración y siempre se pronuncia "wa".',
+              explanation: 'En japonés el verbo/cópula va al final. です (desu) cierra la oración de forma cortés y equivale a "ser/estar". Recuerda que は como partícula temática se pronuncia "wa", nunca "ha".',
+              examples: [
+                { jp: 'わたしは がくせい です。', romaji: 'Watashi wa gakusei desu.', es: 'Yo soy estudiante.' },
+                { jp: 'わたしは メキシコじん です。', romaji: 'Watashi wa Mekishiko-jin desu.', es: 'Yo soy mexicano/a.' },
+                { jp: 'たなかさんは せんせい です。', romaji: 'Tanaka-san wa sensei desu.', es: 'El Sr./Sra. Tanaka es profesor/a.' },
+              ]
+            },
+            {
+              id: 'w2_g3',
+              title: '3. Preguntas con か y Negación con じゃありません',
+              summary: 'Para preguntar solo agregas か al final. Para negar cambias です por じゃありません.',
+              explanation: 'No necesitas cambiar el orden de la frase ni usar signos de interrogación invertidos: agregar か al final convierte cualquier afirmación en pregunta. Para negar de forma cortés, reemplaza です por じゃありません (ja arimasen).',
+              examples: [
+                { jp: 'あなたは がくせい です か。', romaji: 'Anata wa gakusei desu ka.', es: '¿Eres estudiante?' },
+                { jp: 'はい、がくせい です。', romaji: 'Hai, gakusei desu.', es: 'Sí, soy estudiante.' },
+                { jp: 'いいえ、がくせい じゃありません。', romaji: 'Iie, gakusei ja arimasen.', es: 'No, no soy estudiante.' },
+                { jp: 'わたしは にほんじん じゃありません。', romaji: 'Watashi wa nihonjin ja arimasen.', es: 'No soy japonés/a.' },
+              ]
+            },
+            {
+              id: 'w2_g4',
+              title: '4. Tu Presentación Personal (Jikoshoukai)',
+              summary: 'Aprende la fórmula tradicional japonesa de 3 pasos para presentarte con cortesía.',
+              explanation: 'Toda presentación comienza con はじめまして ("Mucho gusto / Primera vez que nos vemos"), sigue con tu nombre usando わたしは [Nombre] です, y termina con よろしく おねがいします ("Encantado, cuento contigo").',
+              examples: [
+                { jp: 'はじめまして。', romaji: 'Hajimemashite.', es: 'Mucho gusto (al conocer a alguien).' },
+                { jp: 'わたしは カルロス です。', romaji: 'Watashi wa Karurosu desu.', es: 'Soy Carlos.' },
+                { jp: 'どうぞ よろしく おねがいします。', romaji: 'Douzo yoroshiku onegaishimasu.', es: 'Mucho gusto / Es un placer conocerte.' },
+              ]
+            }
+          ],
+          pronunciation: [
+            { id: 'w2_p1', kana: 'はじめまして', romaji: 'Hajimemashite', meaning: 'Mucho gusto (primera vez)', accept: ['はじめまして', '初めまして'], tip: 'La "i" en "shite" suena muy corta, casi "hajimemashte".' },
+            { id: 'w2_p2', kana: 'わたしは がくせい です', romaji: 'Watashi wa gakusei desu', meaning: 'Yo soy estudiante', accept: ['わたしはがくせいです', '私は学生です', 'わたしは学生です'], tip: 'Pronuncia は como "wa" y alarga la "e" de gakusei.' },
+            { id: 'w2_p3', kana: 'せんせい じゃありません', romaji: 'Sensei ja arimasen', meaning: 'No soy profesor/a', accept: ['せんせいじゃありません', '先生じゃありません', '先生ではありません'], tip: 'Separa claramente "ja" y "arimasen".' },
+            { id: 'w2_p4', kana: 'にほんじん です か', romaji: 'Nihonjin desu ka', meaning: '¿Eres japonés/a?', accept: ['にほんじんですか', '日本人ですか'], tip: 'Sube ligeramente la entonación al final en la partícula か.' },
+            { id: 'w2_p5', kana: 'よろしく おねがいします', romaji: 'Yoroshiku onegaishimasu', meaning: 'Encantado de conocerte', accept: ['よろしくおねがいします', 'よろしくお願いします', '宜しくお願いします'], tip: 'Habla con calma y marca cada sílaba con "r" suave.' },
+            { id: 'w2_p6', kana: 'おちゃ と みず', romaji: 'Ocha to mizu', meaning: 'Té verde y agua', accept: ['おちゃとみず', 'お茶と水'], tip: 'Practica el sonido combinado ちゃ (cha) y el dakuten ず (zu).' },
+          ],
+          quiz: [
+            { type: 'reading', prompt: '¿Cómo se lee este carácter?', target: 'む', options: ['ma', 'mu', 'me', 'mo'], answer: 1, explanation: 'む se lee "mu" (la vaca haciendo muuu).' },
+            { type: 'reading', prompt: '¿Qué sonido tiene は cuando actúa como partícula de tema?', target: 'わたし は', options: ['ha', 'ba', 'wa', 'pa'], answer: 2, explanation: 'Como partícula temática en "A は B です", は siempre se pronuncia "wa".' },
+            { type: 'audio', prompt: 'Escucha y selecciona el sonido combinado correcto:', audioText: 'おちゃ', options: ['おちや', 'おちゃ', 'おしゃ', 'おきゃ'], answer: 1, explanation: 'おちゃ (ocha) lleva la ゃ pequeña formando "cha".' },
+            { type: 'grammar', prompt: '¿Cómo conviertes "がくせい です" en una pregunta?', target: 'がくせい です ___', options: ['Agregar は al final', 'Agregar の al final', 'Agregar か al final', 'Quitar です'], answer: 2, explanation: 'Agregar か (ka) al final transforma la oración en pregunta: がくせいですか。' },
+            { type: 'grammar', prompt: '¿Cuál es la forma negativa correcta de "せんせい です"?', target: 'No soy profesor', options: ['せんせい です か', 'せんせい じゃありません', 'せんせい は いいえ', 'せんせい ません'], answer: 1, explanation: 'Para sustantivos con です, la negación cortés es じゃありません.' },
+            { type: 'reading', prompt: '¿Qué resulta al agregar handakuten (゜) a ひ (hi)?', target: 'ぴ', options: ['bi', 'pi', 'ji', 'gi'], answer: 1, explanation: 'El círculo (handakuten) transforma la fila H en P: ひ → ぴ (pi).' },
+            { type: 'audio', prompt: 'Escucha la frase de presentación y elige su uso:', audioText: 'はじめまして', options: ['Para despedirse', 'Para decir gracias', 'Al iniciar una presentación personal', 'Para preguntar la hora'], answer: 2, explanation: 'はじめまして (Hajimemashite) se dice al conocer a alguien por primera vez.' },
+            { type: 'reading', prompt: '¿Cuál carácter representa el sonido "n" final?', target: 'にほん', options: ['わ', 'れ', 'ん', 'る'], answer: 2, explanation: 'ん es el único carácter que representa una consonante nasal independiente ("n").' },
+          ]
+        },
+
+        /* ============================ SEMANA 3 ============================ */
+        {
+          id: 3,
+          title: 'Semana 3: Katakana (Parte 1), Números y Compras',
+          shortTitle: 'Katakana 1 y Precios',
+          subtitle: 'Primera mitad del Katakana (ア-ノ), partículas の/も, demostrativos y números 1-100.',
+          badge: 'ア → ノ',
+          characters: [
+            { id: 'w3_a', char: 'ア', romaji: 'a', row: 'Vocales', strokes: 2, mnemonic: 'Un hacha afilada ("A-xa") o una "A" inclinada.', example: 'アメリカ (Amerika) — EE.UU.' },
+            { id: 'w3_i', char: 'イ', romaji: 'i', row: 'Vocales', strokes: 2, mnemonic: 'Un caballete de pintor ("I-lustrador") visto de frente.', example: 'イタリア (Itaria) — Italia' },
+            { id: 'w3_u', char: 'ウ', romaji: 'u', row: 'Vocales', strokes: 3, mnemonic: 'Similar al Hiragana う pero con ángulos rectos y techo plano.', example: 'ウイルス (uirusu) — Virus' },
+            { id: 'w3_e', char: 'エ', romaji: 'e', row: 'Vocales', strokes: 3, mnemonic: 'La puerta de un Elevador ("E-levador") o una viga en forma de I.', example: 'エアコン (eakon) — Aire acond.' },
+            { id: 'w3_o', char: 'オ', romaji: 'o', row: 'Vocales', strokes: 3, mnemonic: 'Un cantante de Ó-pera abriendo los brazos en el escenario.', example: 'オレンジ (orenji) — Naranja' },
+
+            { id: 'w3_ka', char: 'カ', romaji: 'ka', row: 'Fila K', strokes: 2, mnemonic: 'Casi idéntico a か en Hiragana, solo más anguloso y sin el tercer trazo.', example: 'カメラ (kamera) — Cámara' },
+            { id: 'w3_ki', char: 'キ', romaji: 'ki', row: 'Fila K', strokes: 3, mnemonic: 'La parte superior de la llave き (KI) en Hiragana.', example: 'キロ (kiro) — Kilo' },
+            { id: 'w3_ku', char: 'ク', romaji: 'ku', row: 'Fila K', strokes: 2, mnemonic: 'La aleta de un tiburón o un tenedor de cocina ("KU-bierto").', example: 'クラス (kurasu) — Clase' },
+            { id: 'w3_ke', char: 'ケ', romaji: 'ke', row: 'Fila K', strokes: 3, mnemonic: 'Parece una letra "K" mayúscula girada ligeramente.', example: 'ケーキ (kēki) — Pastel' },
+            { id: 'w3_ko', char: 'コ', romaji: 'ko', row: 'Fila K', strokes: 2, mnemonic: 'Dos esquinas ("KO-rners") formando una C cuadrada al revés.', example: 'コーヒー (kōhī) — Café' },
+
+            { id: 'w3_sa', char: 'サ', romaji: 'sa', row: 'Fila S', strokes: 3, mnemonic: 'Una silla de montar o una valla de madera ("SA-ltar la valla").', example: 'サラダ (sarada) — Ensalada' },
+            { id: 'w3_shi', char: 'シ', romaji: 'shi', row: 'Fila S', strokes: 3, mnemonic: 'Una carita sonriendo mirando hacia arriba ("SHI-mile"). Dos puntos horizontales + línea que sube.', example: 'シャツ (shatsu) — Camisa' },
+            { id: 'w3_su', char: 'ス', romaji: 'su', row: 'Fila S', strokes: 2, mnemonic: 'Un esquiador bajando una pista a toda velocidad ("SU-per rápido").', example: 'スマホ (sumaho) — Smartphone' },
+            { id: 'w3_se', char: 'セ', romaji: 'se', row: 'Fila S', strokes: 2, mnemonic: 'Versión simplificada y recta de せ (se) en Hiragana.', example: 'セーター (sētā) — Suéter' },
+            { id: 'w3_so', char: 'ソ', romaji: 'so', row: 'Fila S', strokes: 2, mnemonic: 'Un solo punto arriba y un trazo que baja en diagonal (como aguja "SO-bre tela").', example: 'ソファ (sofa) — Sofá' },
+
+            { id: 'w3_ta', char: 'タ', romaji: 'ta', row: 'Fila T', strokes: 3, mnemonic: 'Parece ク (ku) pero con una línea cruzada como una "TA-bleta" o "TA-co".', example: 'タコス (takosu) — Tacos' },
+            { id: 'w3_chi', char: 'チ', romaji: 'chi', row: 'Fila T', strokes: 3, mnemonic: 'Una porrista ("CHI-rleader") con los brazos abiertos y piernas cruzadas.', example: 'チーズ (chīzu) — Queso' },
+            { id: 'w3_tsu', char: 'ツ', romaji: 'tsu', row: 'Fila T', strokes: 3, mnemonic: 'Dos gotas cayendo verticalmente + trazo que baja desde arriba (diferente a シ).', example: 'ツアー (tsuā) — Tour' },
+            { id: 'w3_te', char: 'テ', romaji: 'te', row: 'Fila T', strokes: 3, mnemonic: 'Un poste de TEléfono con dos cables arriba.', example: 'テスト (tesuto) — Examen' },
+            { id: 'w3_to', char: 'ト', romaji: 'to', row: 'Fila T', strokes: 2, mnemonic: 'Un TÓ-tem vertical con una pequeña rama saliendo a la derecha.', example: 'トマト (tomato) — Tomate' },
+
+            { id: 'w3_na', char: 'ナ', romaji: 'na', row: 'Fila N', strokes: 2, mnemonic: 'Un narval o un signo de más con la punta doblada ("NA-da difícil").', example: 'ナイフ (naifu) — Cuchillo' },
+            { id: 'w3_ni', char: 'ニ', romaji: 'ni', row: 'Fila N', strokes: 2, mnemonic: 'Dos líneas horizontales: ¡en japonés "ni" significa el número DOS!', example: 'ニュース (nyūsu) — Noticias' },
+            { id: 'w3_nu', char: 'ヌ', romaji: 'nu', row: 'Fila N', strokes: 2, mnemonic: 'Dos palillos cruzados atrapando fideos ("NU-dles").', example: 'カヌー (kanū) — Canoa' },
+            { id: 'w3_ne', char: 'ネ', romaji: 'ne', row: 'Fila N', strokes: 4, mnemonic: 'Un nido de pájaros ("NE-st") en la copa de un árbol.', example: 'ネクタイ (nekutai) — Corbata' },
+            { id: 'w3_no', char: 'ノ', romaji: 'no', row: 'Fila N', strokes: 1, mnemonic: 'La barra diagonal de la señal de "NO". ¡Un solo trazo!', example: 'ノート (nōto) — Cuaderno' },
+          ],
+          grammar: [
+            {
+              id: 'w3_g1',
+              title: '1. Partículas の (Posesión) y も (También)',
+              summary: 'Conecta dos sustantivos con の ("de") y sustituye は por も para decir "también".',
+              explanation: 'A の B significa "B de A" (orden inverso al español: primero el dueño, luego el objeto). Por ejemplo: わたし の ほん = "mi libro" (literalmente: libro de yo). Por otro lado, も reemplaza a は para indicar similitud ("también").',
+              examples: [
+                { jp: 'わたしの カメラ です。', romaji: 'Watashi no kamera desu.', es: 'Es mi cámara (la cámara de mí).' },
+                { jp: 'にほんごの ほん です。', romaji: 'Nihongo no hon desu.', es: 'Es un libro de japonés.' },
+                { jp: 'わたしも がくせい です。', romaji: 'Watashi mo gakusei desu.', es: 'Yo también soy estudiante.' },
+                { jp: 'これも わたしの です。', romaji: 'Kore mo watashi no desu.', es: 'Esto también es mío.' },
+              ]
+            },
+            {
+              id: 'w3_g2',
+              title: '2. Demostrativos: これ / それ / あれ',
+              summary: 'Señala objetos según la distancia respecto a quien habla y quien escucha.',
+              explanation: 'これ (kore) = "Esto" (cerca de mí). それ (sore) = "Eso" (cerca de ti). あれ (are) = "Aquello" (lejos de ambos). Además, en Katakana las vocales largas siempre se escriben con un guion largo "ー" (ej. ケーキ = kēki).',
+              examples: [
+                { jp: 'これは ノート です。', romaji: 'Kore wa nōto desu.', es: 'Esto es un cuaderno.' },
+                { jp: 'それは なん です か。', romaji: 'Sore wa nan desu ka.', es: '¿Qué es eso?' },
+                { jp: 'あれは わたしの かさ です。', romaji: 'Are wa watashi no kasa desu.', es: 'Aquello es mi paraguas.' },
+              ]
+            },
+            {
+              id: 'w3_g3',
+              title: '3. Números del 1 al 100',
+              summary: '¡Súper lógico! Si aprendes del 1 al 10, ya puedes construir cualquier número hasta el 99.',
+              explanation: '1: いち (ichi), 2: に (ni), 3: さん (san), 4: よん/し (yon/shi), 5: ご (go), 6: ろく (roku), 7: なな/しち (nana/shichi), 8: はち (hachi), 9: きゅう (kyū), 10: じゅう (jū). Para formar decenas: [número] + じゅう (ej. 20 = にじゅう, 35 = さんじゅうご). 100 = ひゃく (hyaku).',
+              examples: [
+                { jp: 'いち・に・さん・よん・ご', romaji: 'ichi, ni, san, yon, go', es: '1, 2, 3, 4, 5' },
+                { jp: 'ろく・なな・はち・きゅう・じゅう', romaji: 'roku, nana, hachi, kyū, jū', es: '6, 7, 8, 9, 10' },
+                { jp: 'にじゅうご (25) / ななじゅうはち (78)', romaji: 'nijūgo / nanajūhachi', es: '2×10 + 5 = 25 / 7×10 + 8 = 78' },
+                { jp: 'ひゃく (100)', romaji: 'hyaku', es: 'Cien (100)' },
+              ]
+            },
+            {
+              id: 'w3_g4',
+              title: '4. Preguntar Precios: いくら です か',
+              summary: 'Imprescindible para viajar y comprar en Japón. La moneda es えん (en / yen).',
+              explanation: 'Usa la estructura "[Objeto] は いくら です か" para preguntar cuánto cuesta. Para pedir algo amablemente en una tienda, agrega ください ("por favor, deme").',
+              examples: [
+                { jp: 'これは いくら です か。', romaji: 'Kore wa ikura desu ka.', es: '¿Cuánto cuesta esto?' },
+                { jp: 'この ケーキは いくら です か。', romaji: 'Kono kēki wa ikura desu ka.', es: '¿Cuánto cuesta este pastel?' },
+                { jp: 'ひゃくえん です。', romaji: 'Hyaku-en desu.', es: 'Son 100 yenes.' },
+                { jp: 'これを ください。', romaji: 'Kore o kudasai.', es: 'Deme esto, por favor.' },
+              ]
+            }
+          ],
+          pronunciation: [
+            { id: 'w3_p1', kana: 'これは いくら です か', romaji: 'Kore wa ikura desu ka', meaning: '¿Cuánto cuesta esto?', accept: ['これはいくらですか', '此れは幾らですか'], tip: 'Eleva ligeramente el tono al final en か.' },
+            { id: 'w3_p2', kana: 'それは なん です か', romaji: 'Sore wa nan desu ka', meaning: '¿Qué es eso?', accept: ['それはなんですか', 'それは何ですか', '其れは何ですか'], tip: 'Pronuncia "nan" claro antes de "desu ka".' },
+            { id: 'w3_p3', kana: 'わたしの ノート です', romaji: 'Watashi no nōto desu', meaning: 'Es mi cuaderno', accept: ['わたしのノートです', '私のノートです', 'わたしののーとです'], tip: 'Alarga bien la "o" en ノート (nō-to) gracias al guion ー.' },
+            { id: 'w3_p4', kana: 'わたしも がくせい です', romaji: 'Watashi mo gakusei desu', meaning: 'Yo también soy estudiante', accept: ['わたしもがくせいです', '私も学生です', 'わたしも学生です'], tip: 'Asegúrate de decir "mo" (también) y no "wa".' },
+            { id: 'w3_p5', kana: 'ひゃくえん です', romaji: 'Hyaku-en desu', meaning: 'Son 100 yenes', accept: ['ひゃくえんです', '百円です', '100円です'], tip: 'Pronuncia ひゃ (hya) en un solo golpe suave.' },
+            { id: 'w3_p6', kana: 'タコス と ケーキ', romaji: 'Takosu to kēki', meaning: 'Tacos y pastel', accept: ['タコスとケーキ', 'たこすとけーき'], tip: 'Alarga la "e" de ケーキ (kēki); recuerda que en タコス la "u" es suave.' },
+          ],
+          quiz: [
+            { type: 'reading', prompt: '¿Cómo se lee el carácter Katakana ク?', target: 'ク', options: ['ta', 'ku', 'ke', 'su'], answer: 1, explanation: 'ク es "ku" en Katakana (タ tiene una línea cruzada extra).' },
+            { type: 'reading', prompt: 'Cuidado con la pareja difícil: ¿cuál es "shi" (el que mira hacia arriba)?', target: 'shi', options: ['ツ', 'ソ', 'シ', 'ノ'], answer: 2, explanation: 'シ es "shi" (sus dos puntitos son casi horizontales y la línea sube desde abajo).' },
+            { type: 'audio', prompt: 'Escucha la palabra en Katakana y elige la escritura correcta:', audioText: 'カメラ', options: ['タコス', 'カメラ', 'ノート', 'トマト'], answer: 1, explanation: 'カ (ka) + メ (me) + ラ (ra) = カメラ (cámara).' },
+            { type: 'grammar', prompt: '¿Cómo se dice "Mi libro" usando la partícula の?', target: 'Mi libro', options: ['ほん の わたし', 'わたし の ほん', 'わたし も ほん', 'ほん は わたし'], answer: 1, explanation: 'En japonés el poseedor va primero: わたし (yo) の ほん (libro).' },
+            { type: 'grammar', prompt: 'Si un objeto está lejos tanto de ti como de tu interlocutor, usas:', target: 'Aquello', options: ['これ (kore)', 'それ (sore)', 'あれ (are)', 'ここ (koko)'], answer: 2, explanation: 'あれ (are) señala algo lejano para ambos.' },
+            { type: 'reading', prompt: '¿Qué número representa よんじゅうご?', target: 'よんじゅうご', options: ['45', '54', '14', '95'], answer: 0, explanation: 'よん (4) + じゅう (10) + ご (5) = 45.' },
+            { type: 'audio', prompt: 'Escucha la pregunta y elige su significado:', audioText: 'これはいくらですか', options: ['¿Qué es esto?', '¿De quién es esto?', '¿Cuánto cuesta esto?', '¿Dónde está esto?'], answer: 2, explanation: 'これはいくらですか (Kore wa ikura desu ka) pregunta el precio.' },
+            { type: 'grammar', prompt: '¿Para qué sirve el guion "ー" en palabras como ケーキ (kēki)?', target: 'ケーキ', options: ['Hace una pausa corta', 'Alarga la vocal anterior', 'Separa dos palabras', 'Indica plural'], answer: 1, explanation: 'En Katakana, el guion largo ー (chōonpu) siempre duplica la duración de la vocal anterior.' },
+          ]
+        },
+
+        /* ============================ SEMANA 4 ============================ */
+        {
+          id: 4,
+          title: 'Semana 4: Katakana (Parte 2) y Primeros Verbos',
+          shortTitle: 'Katakana 2 y Verbos SOV',
+          subtitle: 'Resto del Katakana (ハ-ン), palabras reales, orden SOV, forma 〜ます y días de la semana.',
+          badge: 'ハ → ン',
+          hasLoanwordsChart: true,
+          characters: [
+            { id: 'w4_ha', char: 'ハ', romaji: 'ha', row: 'Fila H', strokes: 2, mnemonic: 'Un tejado abierto o dos bigotes riendo "¡HA-HA!".', example: 'ハンバーガー (hanbāgā) — Hamburguesa' },
+            { id: 'w4_hi', char: 'ヒ', romaji: 'hi', row: 'Fila H', strokes: 2, mnemonic: 'Una persona diciendo "HI" (hola) levantando un brazo lateral.', example: 'ヒーロー (hīrō) — Héroe' },
+            { id: 'w4_fu', char: 'フ', romaji: 'fu', row: 'Fila H', strokes: 1, mnemonic: 'La ladera del Monte FU-ji o un búmeran volando.', example: 'フランス (Furansu) — Francia' },
+            { id: 'w4_he', char: 'ヘ', romaji: 'he', row: 'Fila H', strokes: 1, mnemonic: '¡Idéntico a へ en Hiragana! Una montaña simple.', example: 'ヘルメット (herumetto) — Casco' },
+            { id: 'w4_ho', char: 'ホ', romaji: 'ho', row: 'Fila H', strokes: 4, mnemonic: 'Una cruz sagrada ("HO-ly") con dos destellos a los lados.', example: 'ホテル (hoteru) — Hotel' },
+
+            { id: 'w4_ma', char: 'マ', romaji: 'ma', row: 'Fila M', strokes: 2, mnemonic: 'Un número 7 con una pequeña marca ("MA-rca") en la punta.', example: 'マンゴー (mangō) — Mango' },
+            { id: 'w4_mi', char: 'ミ', romaji: 'mi', row: 'Fila M', strokes: 3, mnemonic: 'Tres líneas paralelas: los 3 bigotes de un gato ("MI-au").', example: 'ミルク (miruku) — Leche' },
+            { id: 'w4_mu', char: 'ム', romaji: 'mu', row: 'Fila M', strokes: 2, mnemonic: 'Un brazo flexionando un MÚ-sculo en forma de triángulo.', example: 'ゲーム (gēmu) — Videojuego' },
+            { id: 'w4_me', char: 'メ', romaji: 'me', row: 'Fila M', strokes: 2, mnemonic: 'Una cicatriz en forma de X sobre un ojo ("ME" = ojo).', example: 'メキシコ (Mekishiko) — México' },
+            { id: 'w4_mo', char: 'モ', romaji: 'mo', row: 'Fila M', strokes: 3, mnemonic: 'Versión angular y limpia del Hiragana も (mo).', example: 'モノレール (monorēru) — Monorriel' },
+
+            { id: 'w4_ya', char: 'ヤ', romaji: 'ya', row: 'Fila Y', strokes: 2, mnemonic: 'Versión recta del Hiragana や (ya) sin el puntito extra.', example: 'ヤクルト (Yakuruto) — Yakult' },
+            { id: 'w4_yu', char: 'ユ', romaji: 'yu', row: 'Fila Y', strokes: 2, mnemonic: 'Un periscopio de submarino o el número 1 sobre una base ("YU-hu!").', example: 'ユニクロ (Yunikuro) — Uniqlo' },
+            { id: 'w4_yo', char: 'ヨ', romaji: 'yo', row: 'Fila Y', strokes: 3, mnemonic: 'Una letra E al revés: "¡YO soy distinto!".', example: 'ヨーグルト (yōguruto) — Yogur' },
+
+            { id: 'w4_ra', char: 'ラ', romaji: 'ra', row: 'Fila R', strokes: 2, mnemonic: 'Una gorra con visera o una rampa ("RA-mpa") con techo arriba.', example: 'ラーメン (rāmen) — Ramen' },
+            { id: 'w4_ri', char: 'リ', romaji: 'ri', row: 'Fila R', strokes: 2, mnemonic: 'Casi idéntico a り (ri) en Hiragana: dos líneas rectas.', example: 'リモコン (rimokon) — Control remoto' },
+            { id: 'w4_ru', char: 'ル', romaji: 'ru', row: 'Fila R', strokes: 2, mnemonic: 'Dos raíces ("RU-ts") extendiéndose en direcciones opuestas.', example: 'ルール (rūru) — Regla' },
+            { id: 'w4_re', char: 'レ', romaji: 're', row: 'Fila R', strokes: 1, mnemonic: 'La mitad derecha de ル: un rayo láser ("RE-y") que rebota.', example: 'レストラン (resutoran) — Restaurante' },
+            { id: 'w4_ro', char: 'ロ', romaji: 'ro', row: 'Fila R', strokes: 3, mnemonic: 'Un cuadrado perfecto como la cabeza de un RO-bot.', example: 'ロボット (robotto) — Robot' },
+
+            { id: 'w4_wa', char: 'ワ', romaji: 'wa', row: 'Fila W/N', strokes: 2, mnemonic: 'Como ウ (u) pero sin la rayita de arriba: una copa de vino ("WA-in").', example: 'ワイン (wain) — Vino' },
+            { id: 'w4_wo', char: 'ヲ', romaji: 'o (wo)', row: 'Fila W/N', strokes: 3, mnemonic: 'Como フ con una línea en medio (se usa rara vez, principalmente en manga).', example: 'コーヒーヲ (uso estilístico)' },
+            { id: 'w4_n', char: 'ン', romaji: 'n', row: 'Fila W/N', strokes: 2, mnemonic: 'Un solo punto horizontal y una línea que sube (como シ pero con un ojo).', example: 'パン (pan) — Pan' },
+          ],
+          grammar: [
+            {
+              id: 'w4_g1',
+              title: '1. Orden SOV y la Partícula de Objeto を',
+              summary: 'En japonés el verbo SIEMPRE va al final: Sujeto + Objeto + Verbo.',
+              explanation: 'A diferencia del español ("Yo como tacos"), en japonés dices "Yo [tacos] を como". La partícula を (escrita "wo", pronunciada "o") va pegada justo después del objeto que recibe la acción del verbo.',
+              examples: [
+                { jp: 'わたしは コーヒーを のみます。', romaji: 'Watashi wa kōhī o nomimasu.', es: 'Yo bebo café.' },
+                { jp: 'わたしは タコスを たべます。', romaji: 'Watashi wa takosu o tabemasu.', es: 'Yo como tacos.' },
+                { jp: 'わたしは アニメを みます。', romaji: 'Watashi wa anime o mimasu.', es: 'Yo veo anime.' },
+              ]
+            },
+            {
+              id: 'w4_g2',
+              title: '2. Verbos en Forma Cortés: 〜ます y 〜ません',
+              summary: 'Termina en 〜ます para afirmar (presente/futuro) y en 〜ません para negar.',
+              explanation: '¡Buena noticia! En japonés los verbos NO cambian según la persona (yo, tú, él, nosotros usan exactamente el mismo verbo). Solo cambia si es afirmativo (〜ます) o negativo (〜ません).',
+              examples: [
+                { jp: 'たべます / たべません', romaji: 'tabemasu / tabemasen', es: 'Como / No como' },
+                { jp: 'のみます / のみません', romaji: 'nomimasu / nomimasen', es: 'Bebo / No bebo' },
+                { jp: 'わたしは パンを たべません。', romaji: 'Watashi wa pan o tabemasen.', es: 'No como pan.' },
+                { jp: 'コーヒーを のみます か。', romaji: 'Kōhī o nomimasu ka.', es: '¿Bebes café?' },
+              ]
+            },
+            {
+              id: 'w4_g3',
+              title: '3. Tus Primeros 10 Verbos Cotidianos Clave',
+              summary: 'Domina estos 10 verbos en forma 〜ます y podrás describir casi todo tu día.',
+              explanation: 'Toca el botón de audio para escuchar cada pareja de verbos. Nota que いきます (ir) y きます (venir) usan la partícula に o へ para el destino (ej. にほんへ いきます = Voy a Japón).',
+              examples: [
+                { jp: 'たべます (comer) · のみます (beber)', romaji: 'tabemasu · nomimasu', es: 'Comer · Beber' },
+                { jp: 'みます (ver) · ききます (escuchar)', romaji: 'mimasu · kikimasu', es: 'Ver/Mirar · Escuchar' },
+                { jp: 'よみます (leer) · かきます (escribir)', romaji: 'yomimasu · kakimasu', es: 'Leer · Escribir' },
+                { jp: 'いきます (ir) · きます (venir)', romaji: 'ikimasu · kimasu', es: 'Ir · Venir' },
+                { jp: 'かいます (comprar) · ねます (dormir)', romaji: 'kaimasu · nemasu', es: 'Comprar · Dormir' },
+              ]
+            },
+            {
+              id: 'w4_g4',
+              title: '4. Los Días de la Semana (〜ようび)',
+              summary: 'Todos terminan en ようび (youbi) y representan elementos de la naturaleza.',
+              explanation: 'Lunes (Luna), Martes (Fuego), Miércoles (Agua), Jueves (Árbol), Viernes (Oro), Sábado (Tierra), Domingo (Sol). Usa に después del día para indicar "el [día]".',
+              examples: [
+                { jp: 'げつようび · かようび · すいようび', romaji: 'getsuyoubi · kayoubi · suiyoubi', es: 'Lunes · Martes · Miércoles' },
+                { jp: 'もくようび · きんようび', romaji: 'mokuyoubi · kinyoubi', es: 'Jueves · Viernes' },
+                { jp: 'どようび · にちようび', romaji: 'doyoubi · nichiyoubi', es: 'Sábado · Domingo' },
+                { jp: 'にちようびに えいがを みます。', romaji: 'Nichiyoubi ni eiga o mimasu.', es: 'El domingo veo una película.' },
+              ]
+            }
+          ],
+          pronunciation: [
+            { id: 'w4_p1', kana: 'コーヒーを のみます', romaji: 'Kōhī o nomimasu', meaning: 'Bebo café', accept: ['コーヒーをのみます', 'コーヒーを飲みます', 'こーひーをのみます'], tip: 'Estira las dos vocales largas de コーヒー (kō-hī) y pronuncia を como "o".' },
+            { id: 'w4_p2', kana: 'タコスを たべます', romaji: 'Takosu o tabemasu', meaning: 'Como tacos', accept: ['タコスをたべます', 'タコスを食べます', 'たこすをたべます'], tip: 'Mantén un ritmo fluido uniendo タコスを suavemente.' },
+            { id: 'w4_p3', kana: 'テレビを みません', romaji: 'Terebi o mimasen', meaning: 'No veo televisión', accept: ['テレビをみません', 'テレビを見ません', 'てれびをみません'], tip: 'Enfatiza la terminación negativa ません (masen).' },
+            { id: 'w4_p4', kana: 'ほんを よみます', romaji: 'Hon o yomimasu', meaning: 'Leo un libro', accept: ['ほんをよみます', '本を読みます', 'ほんを読みます'], tip: 'La "n" de ほん se une suavemente a "o".' },
+            { id: 'w4_p5', kana: 'にほんごを かきます', romaji: 'Nihongo o kakimasu', meaning: 'Escribo japonés', accept: ['にほんごをかきます', '日本語を書きます', 'にほんごを書きます'], tip: 'Recuerda el dakuten ご (go) en にほんご.' },
+            { id: 'w4_p6', kana: 'にちようびに かいます', romaji: 'Nichiyoubi ni kaimasu', meaning: 'Compro el domingo', accept: ['にちようびにかいます', '日曜日に買います', 'にちようびに買います'], tip: 'Alarga el "you" en にちようび (nichiyōbi).' },
+          ],
+          quiz: [
+            { type: 'reading', prompt: '¿Cómo se lee la palabra en Katakana レストラン?', target: 'レストラン', options: ['Televisión', 'Restaurante', 'Hotel', 'Smartphone'], answer: 1, explanation: 'レ(re) ス(su) ト(to) ラ(ra) ン(n) = Restaurante.' },
+            { type: 'reading', prompt: 'Identifica el carácter Katakana para "n":', target: 'ン vs ソ', options: ['ソ (trazo que baja)', 'ン (trazo que sube)', 'メ', 'マ'], answer: 1, explanation: 'ン es "n" (un puntito más horizontal y la línea sube hacia la derecha).' },
+            { type: 'audio', prompt: 'Escucha y elige el significado correcto:', audioText: 'コーヒーをのみます', options: ['Como pan', 'Bebo café', 'No bebo café', 'Compro café'], answer: 1, explanation: 'コーヒーを のみます significa "Bebo café".' },
+            { type: 'grammar', prompt: '¿Cuál partícula marca el objeto directo en "わたしは パン ___ たべます"?', target: 'パン ___ たべます', options: ['は', 'の', 'を', 'か'], answer: 2, explanation: 'La partícula を (o) marca el objeto directo que recibe la acción del verbo.' },
+            { type: 'grammar', prompt: '¿Cuál es el orden correcto de una oración en japonés?', target: 'Orden SOV', options: ['Sujeto + Verbo + Objeto', 'Verbo + Sujeto + Objeto', 'Sujeto + Objeto + Verbo', 'Objeto + Verbo + Sujeto'], answer: 2, explanation: 'El japonés es un idioma SOV: Sujeto + Objeto + Verbo (el verbo siempre va al final).' },
+            { type: 'grammar', prompt: '¿Cómo se dice "No veo" usando el verbo みます?', target: 'No veo', options: ['みます じゃありません', 'みません', 'いいえ みます', 'みないです か'], answer: 1, explanation: 'Para negar un verbo en forma cortés, cambias 〜ます por 〜ません (みません).' },
+            { type: 'reading', prompt: '¿Qué día de la semana es げつようび?', target: 'げつようび', options: ['Domingo', 'Sábado', 'Lunes', 'Viernes'], answer: 2, explanation: 'げつようび (getsuyoubi) es Lunes (día de la luna).' },
+            { type: 'audio', prompt: 'Escucha el verbo y elige su significado:', audioText: 'かきます', options: ['Leer', 'Escribir', 'Dormir', 'Escuchar'], answer: 1, explanation: 'かきます (kakimasu) significa "escribir".' },
+          ]
+        }
+      ]
+    };
+
+    /* =========================================================================
+       2. GESTOR DE ESTADO Y PERSISTENCIA (localStorage)
+       ========================================================================= */
+    const STORAGE_KEY = 'nihongo4w_progress_v1';
+
+    const DefaultState = () => ({
+      practicedChars: {},     // { 'w1_a': true, ... }
+      completedGrammar: {},   // { 'w1_g1': true, ... }
+      pronunciationScores: {},// { 'w1_p1': 92, ... }
+      quizBestScores: {},     // { 1: 100, 2: 88, ... }
+      showRomaji: true,
+    });
+
+    const State = {
+      data: DefaultState(),
+
+      load() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            this.data = { ...DefaultState(), ...parsed };
+          }
+        } catch (e) {
+          console.warn('No se pudo leer localStorage:', e);
+          this.data = DefaultState();
+        }
+      },
+
+      save() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+        } catch (e) {
+          console.warn('No se pudo guardar en localStorage:', e);
+        }
+      },
+
+      reset() {
+        this.data = DefaultState();
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch (e) {}
+      },
+
+      getWeekMetrics(weekId) {
+        const week = COURSE_DATA.weeks.find(w => w.id === weekId);
+        if (!week) return { progress: 0, grade: null, charsDone: 0, charsTotal: 0, grammarDone: 0, grammarTotal: 0, pronDone: 0, pronTotal: 0, quizScore: null };
+
+        const charsTotal = week.characters.length;
+        const charsDone = week.characters.filter(c => this.data.practicedChars[c.id]).length;
+
+        const grammarTotal = week.grammar.length;
+        const grammarDone = week.grammar.filter(g => this.data.completedGrammar[g.id]).length;
+
+        const pronTotal = week.pronunciation.length;
+        const pronScores = week.pronunciation
+          .map(p => this.data.pronunciationScores[p.id])
+          .filter(v => typeof v === 'number');
+        const pronDone = pronScores.length;
+
+        const quizScore = typeof this.data.quizBestScores[weekId] === 'number'
+          ? this.data.quizBestScores[weekId]
+          : null;
+        const quizPassed = quizScore !== null && quizScore >= 60 ? 1 : 0;
+
+        // Ponderación del progreso semanal:
+        // Escritura 45%, Gramática 15%, Pronunciación 20%, Quiz 20%
+        const progress = Math.round(
+          (charsDone / charsTotal) * 45 +
+          (grammarDone / grammarTotal) * 15 +
+          (pronDone / pronTotal) * 20 +
+          (quizScore !== null ? (quizPassed ? 20 : 10) : 0)
+        );
+
+        // Calificación semanal (promedio de pronunciación y quiz evaluados)
+        const gradeParts = [];
+        if (pronScores.length > 0) {
+          const avgPron = pronScores.reduce((a, b) => a + b, 0) / pronScores.length;
+          gradeParts.push(avgPron);
+        }
+        if (quizScore !== null) {
+          gradeParts.push(quizScore);
+        }
+        const grade = gradeParts.length > 0
+          ? Math.round(gradeParts.reduce((a, b) => a + b, 0) / gradeParts.length)
+          : null;
+
+        return {
+          progress,
+          grade,
+          charsDone, charsTotal,
+          grammarDone, grammarTotal,
+          pronDone, pronTotal,
+          quizScore
+        };
+      },
+
+      getGlobalMetrics() {
+        const weekMetrics = COURSE_DATA.weeks.map(w => this.getWeekMetrics(w.id));
+        const globalProgress = Math.round(
+          weekMetrics.reduce((acc, m) => acc + m.progress, 0) / weekMetrics.length
+        );
+
+        const grades = weekMetrics.map(m => m.grade).filter(g => g !== null);
+        const globalGrade = grades.length > 0
+          ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length)
+          : null;
+
+        const totalChars = weekMetrics.reduce((a, m) => a + m.charsTotal, 0);
+        const doneChars = weekMetrics.reduce((a, m) => a + m.charsDone, 0);
+        const totalPron = weekMetrics.reduce((a, m) => a + m.pronTotal, 0);
+        const donePron = weekMetrics.reduce((a, m) => a + m.pronDone, 0);
+        const quizzesDone = weekMetrics.filter(m => m.quizScore !== null).length;
+
+        return {
+          globalProgress,
+          globalGrade,
+          doneChars,
+          totalChars,
+          donePron,
+          totalPron,
+          quizzesDone,
+        };
+      }
+    };
+
+    /* =========================================================================
+       3. MOTOR DE AUDIO NATIVO (Web Speech Synthesis ja-JP)
+       ========================================================================= */
+    const SpeechEngine = {
+      voices: [],
+      jaVoice: null,
+      supported: 'speechSynthesis' in window,
+
+      init() {
+        if (!this.supported) return;
+        const loadVoices = () => {
+          this.voices = window.speechSynthesis.getVoices() || [];
+          // Priorizar voces japonesas de alta calidad (Kyoko en iPadOS, Otoya, Google 日本語)
+          const jaVoices = this.voices.filter(v =>
+            v.lang && (v.lang.toLowerCase().startsWith('ja') || v.lang.toLowerCase().includes('jp'))
+          );
+          this.jaVoice =
+            jaVoices.find(v => /kyoko|otoya|o-ren|hattori|google/i.test(v.name)) ||
+            jaVoices[0] ||
+            null;
+        };
+
+        loadVoices();
+        if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+          window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
+      },
+
+      speak(text, rate = 1.0) {
+        if (!this.supported) {
+          UI.toast('Tu navegador no soporta síntesis de voz.');
+          return;
+        }
+        try {
+          window.speechSynthesis.cancel();
+          // Limpiar paréntesis o notas en español si existieran
+          const cleanText = text.replace(/\(.*?\)/g, '').replace(/·/g, '、').trim();
+          const utter = new SpeechSynthesisUtterance(cleanText);
+          utter.lang = 'ja-JP';
+          utter.rate = rate;
+          utter.pitch = 1.0;
+          if (this.jaVoice) {
+            utter.voice = this.jaVoice;
+          }
+          utter.onerror = (e) => {
+            if (e.error !== 'interrupted' && e.error !== 'canceled') {
+              console.warn('Error de audio TTS:', e.error);
+            }
+          };
+          window.speechSynthesis.speak(utter);
+        } catch (err) {
+          console.error('Error ejecutando speechSynthesis:', err);
+          UI.toast('No se pudo reproducir el audio.');
+        }
+      }
+    };
+
+    /* =========================================================================
+       4. CONTROLADOR DE LIENZO TÁCTIL (HTML5 Canvas optimizado para iPad)
+       ========================================================================= */
+    const CanvasController = {
+      canvas: null,
+      ctx: null,
+      isDrawing: false,
+      strokes: [],
+      currentStroke: [],
+      showGhost: true,
+      currentChar: '',
+
+      mount(char) {
+        this.currentChar = char;
+        this.canvas = document.getElementById('drawing-canvas');
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d');
+        this.strokes = [];
+        this.currentStroke = [];
+        this.isDrawing = false;
+
+        this.resize();
+        this.bindEvents();
+        this.redraw();
+      },
+
+      resize() {
+        if (!this.canvas) return;
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        const size = Math.min(rect.width, 360);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+
+        this.canvas.style.width = `${size}px`;
+        this.canvas.style.height = `${size}px`;
+        this.canvas.width = Math.round(size * dpr);
+        this.canvas.height = Math.round(size * dpr);
+
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.logicalSize = size;
+      },
+
+      bindEvents() {
+        const el = this.canvas;
+        // Bloquear scroll nativo en iOS/iPadOS al tocar el lienzo
+        const preventTouchScroll = (e) => {
+          if (e.cancelable) e.preventDefault();
+        };
+        el.addEventListener('touchstart', preventTouchScroll, { passive: false });
+        el.addEventListener('touchmove', preventTouchScroll, { passive: false });
+
+        const getCoords = (e) => {
+          const rect = el.getBoundingClientRect();
+          return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+            pressure: e.pressure && e.pressure > 0 ? e.pressure : 0.5
+          };
+        };
+
+        el.onpointerdown = (e) => {
+          e.preventDefault();
+          el.setPointerCapture(e.pointerId);
+          this.isDrawing = true;
+          const pt = getCoords(e);
+          this.currentStroke = [pt];
+          this.redraw();
+        };
+
+        el.onpointermove = (e) => {
+          if (!this.isDrawing) return;
+          e.preventDefault();
+          const pt = getCoords(e);
+          this.currentStroke.push(pt);
+          this.redraw();
+        };
+
+        const endStroke = (e) => {
+          if (!this.isDrawing) return;
+          e.preventDefault();
+          this.isDrawing = false;
+          if (this.currentStroke.length > 0) {
+            this.strokes.push([...this.currentStroke]);
+            this.currentStroke = [];
+          }
+          this.redraw();
+        };
+
+        el.onpointerup = endStroke;
+        el.onpointercancel = endStroke;
+      },
+
+      redraw() {
+        if (!this.ctx || !this.canvas) return;
+        const size = this.logicalSize || 300;
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, size, size);
+
+        // Guías centrales punteadas (estilo cuadrícula japonesa)
+        ctx.save();
+        ctx.strokeStyle = 'rgba(29, 53, 87, 0.16)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(size / 2, 0);
+        ctx.lineTo(size / 2, size);
+        ctx.moveTo(0, size / 2);
+        ctx.lineTo(size, size / 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Carácter fantasma guía
+        if (this.showGhost && this.currentChar) {
+          ctx.save();
+          ctx.font = `500 ${Math.round(size * 0.68)}px "Noto Sans JP", sans-serif`;
+          ctx.fillStyle = 'rgba(29, 53, 87, 0.11)';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(this.currentChar, size / 2, size / 2 + size * 0.03);
+          ctx.restore();
+        }
+
+        // Dibujar trazos guardados y trazo actual
+        const allStrokes = this.currentStroke.length > 0
+          ? [...this.strokes, this.currentStroke]
+          : this.strokes;
+
+        ctx.save();
+        ctx.strokeStyle = '#1D3557';
+        ctx.fillStyle = '#1D3557';
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = Math.max(8, size * 0.032);
+
+        for (const stroke of allStrokes) {
+          if (stroke.length === 1) {
+            ctx.beginPath();
+            ctx.arc(stroke[0].x, stroke[0].y, ctx.lineWidth / 2, 0, Math.PI * 2);
+            ctx.fill();
+            continue;
+          }
+          ctx.beginPath();
+          ctx.moveTo(stroke[0].x, stroke[0].y);
+          for (let i = 1; i < stroke.length - 1; i++) {
+            const xc = (stroke[i].x + stroke[i + 1].x) / 2;
+            const yc = (stroke[i].y + stroke[i + 1].y) / 2;
+            ctx.quadraticCurveTo(stroke[i].x, stroke[i].y, xc, yc);
+          }
+          const last = stroke[stroke.length - 1];
+          ctx.lineTo(last.x, last.y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      },
+
+      clear() {
+        this.strokes = [];
+        this.currentStroke = [];
+        this.redraw();
+      },
+
+      undo() {
+        this.strokes.pop();
+        this.redraw();
+      },
+
+      toggleGhost() {
+        this.showGhost = !this.showGhost;
+        this.redraw();
+        const btn = document.getElementById('btn-toggle-ghost');
+        if (btn) {
+          btn.innerHTML = this.showGhost
+            ? '👁️ Ocultar guía'
+            : '👁️ Mostrar guía';
+        }
+      }
+    };
+
+    /* =========================================================================
+       5. EVALUADOR DE PRONUNCIACIÓN (SpeechRecognition + MediaRecorder + Fallback)
+       ========================================================================= */
+    const PronunciationEngine = {
+      activeItemId: null,
+      isRecording: false,
+      recognition: null,
+      mediaRecorder: null,
+      mediaStream: null,
+      audioChunks: [],
+      recordings: {}, // { itemId: blobUrl }
+      lastResults: {}, // { itemId: { transcript, score, feedback } }
+      fallbackMode: false,
+      fallbackReason: '',
+
+      checkSupport() {
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRec) {
+          this.fallbackMode = true;
+          this.fallbackReason = 'Tu navegador actual no soporta reconocimiento de voz automático (SpeechRecognition).';
+          return false;
+        }
+        if (window.location.protocol === 'file:') {
+          // En algunos navegadores locales o iPadOS, el micrófono puede estar restringido en file://
+          // Permitimos intentarlo pero mostramos opción de autoevaluación siempre accesible.
+        }
+        return true;
+      },
+
+      // Normaliza texto japonés quitando espacios, puntuación y convirtiendo katakana/hiragana opcionalmente
+      normalizeJp(str) {
+        return (str || '')
+          .toLowerCase()
+          .replace(/[\s\u3000。、？！?!.,・\-「」()（）]/g, '')
+          .trim();
+      },
+
+      // Convierte Katakana a Hiragana para comparación justa si el motor mezcla silabarios
+      kataToHira(str) {
+        return str.replace(/[\u30a1-\u30f6]/g, ch =>
+          String.fromCharCode(ch.charCodeAt(0) - 0x60)
+        );
+      },
+
+      levenshtein(a, b) {
+        const m = a.length;
+        const n = b.length;
+        if (m === 0) return n;
+        if (n === 0) return m;
+        const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+        for (let i = 0; i <= m; i++) dp[i][0] = i;
+        for (let j = 0; j <= n; j++) dp[0][j] = j;
+        for (let i = 1; i <= m; i++) {
+          for (let j = 1; j <= n; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            dp[i][j] = Math.min(
+              dp[i - 1][j] + 1,
+              dp[i][j - 1] + 1,
+              dp[i - 1][j - 1] + cost
+            );
+          }
+        }
+        return dp[m][n];
+      },
+
+      scoreTranscript(transcript, item) {
+        const normTrans = this.normalizeJp(transcript);
+        if (!normTrans) return { score: 0, feedback: 'No se detectó voz clara. Acércate al micrófono e intenta de nuevo.' };
+
+        const hiraTrans = this.kataToHira(normTrans);
+        let bestScore = 0;
+
+        for (const candidate of item.accept) {
+          const normCand = this.normalizeJp(candidate);
+          const hiraCand = this.kataToHira(normCand);
+
+          const d1 = this.levenshtein(normTrans, normCand);
+          const s1 = Math.max(0, Math.round((1 - d1 / Math.max(normTrans.length, normCand.length, 1)) * 100));
+
+          const d2 = this.levenshtein(hiraTrans, hiraCand);
+          const s2 = Math.max(0, Math.round((1 - d2 / Math.max(hiraTrans.length, hiraCand.length, 1)) * 100));
+
+          bestScore = Math.max(bestScore, s1, s2);
+        }
+
+        let feedback = '';
+        if (bestScore >= 90) {
+          feedback = '¡Excelente pronunciación! Muy natural y precisa.';
+        } else if (bestScore >= 75) {
+          if (item.kana.includes('ー') || item.kana.includes('おう') || item.kana.includes('よう')) {
+            feedback = '¡Muy bien! Cuidado con mantener las vocales largas un poco más extendidas.';
+          } else if (item.kana.includes('っ')) {
+            feedback = '¡Bien! Recuerda marcar ligeramente la pausa de la consonante doble (っ).';
+          } else {
+            feedback = '¡Buen trabajo! Casi perfecto, intenta articular cada sílaba con el mismo ritmo.';
+          }
+        } else if (bestScore >= 45) {
+          feedback = `Aceptable, pero el sistema escuchó diferencias. Consejo: ${item.tip}`;
+        } else {
+          feedback = `Intenta hablar más pausado y claro, escuchando primero el modelo lento. Consejo: ${item.tip}`;
+        }
+
+        return { score: bestScore, feedback };
+      },
+
+      async toggleRecording(weekId, itemId) {
+        if (this.isRecording) {
+          this.stopRecording();
+          return;
+        }
+
+        const week = COURSE_DATA.weeks.find(w => w.id === weekId);
+        const item = week.pronunciation.find(p => p.id === itemId);
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRec) {
+          this.fallbackMode = true;
+          this.fallbackReason = 'Reconocimiento de voz no disponible en este navegador. Usa el modo Autoevaluación.';
+          App.renderCurrentView();
+          return;
+        }
+
+        this.activeItemId = itemId;
+        this.isRecording = true;
+        this.audioChunks = [];
+        App.renderCurrentView();
+
+        // 1. Intentar grabar audio del usuario con MediaRecorder (para reproducir y comparar)
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          try {
+            this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            if (typeof MediaRecorder !== 'undefined') {
+              this.mediaRecorder = new MediaRecorder(this.mediaStream);
+              this.mediaRecorder.ondataavailable = (ev) => {
+                if (ev.data && ev.data.size > 0) this.audioChunks.push(ev.data);
+              };
+              this.mediaRecorder.onstop = () => {
+                if (this.audioChunks.length > 0) {
+                  const blob = new Blob(this.audioChunks, { type: this.mediaRecorder.mimeType || 'audio/webm' });
+                  if (this.recordings[itemId]) URL.revokeObjectURL(this.recordings[itemId]);
+                  this.recordings[itemId] = URL.createObjectURL(blob);
+                }
+                this.cleanupStream();
+                App.renderCurrentView();
+              };
+              this.mediaRecorder.start();
+            }
+          } catch (micErr) {
+            console.warn('Permiso de micrófono / MediaRecorder:', micErr);
+            if (micErr.name === 'NotAllowedError' || micErr.name === 'PermissionDeniedError') {
+              this.isRecording = false;
+              this.activeItemId = null;
+              this.fallbackMode = true;
+              this.fallbackReason = 'Permiso de micrófono denegado. Activamos el modo Autoevaluación para que puedas continuar sin bloqueos.';
+              UI.toast('Micrófono denegado: Modo Autoevaluación activado.');
+              App.renderCurrentView();
+              return;
+            }
+          }
+        }
+
+        // 2. Iniciar Web Speech API en ja-JP
+        try {
+          const rec = new SpeechRec();
+          this.recognition = rec;
+          rec.lang = 'ja-JP';
+          rec.interimResults = false;
+          rec.maxAlternatives = 3;
+
+          let gotResult = false;
+
+          rec.onresult = (event) => {
+            gotResult = true;
+            // Evaluar todas las alternativas devueltas y tomar la mejor coincidencia
+            let bestEval = { score: -1, feedback: '', transcript: '' };
+            const results = event.results[0];
+            for (let i = 0; i < results.length; i++) {
+              const t = results[i].transcript;
+              const evaluated = this.scoreTranscript(t, item);
+              if (evaluated.score > bestEval.score) {
+                bestEval = { ...evaluated, transcript: t };
+              }
+            }
+
+            this.lastResults[itemId] = bestEval;
+            const prev = State.data.pronunciationScores[itemId] || 0;
+            State.data.pronunciationScores[itemId] = Math.max(prev, bestEval.score);
+            State.save();
+          };
+
+          rec.onerror = (event) => {
+            console.warn('SpeechRecognition error:', event.error);
+            if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+              this.fallbackMode = true;
+              this.fallbackReason = 'El navegador bloqueó el micrófono o requiere HTTPS. Usa el modo Autoevaluación.';
+              UI.toast('Modo Autoevaluación activado.');
+            } else if (event.error === 'no-speech') {
+              UI.toast('No se detectó voz. Intenta hablar un poco más fuerte.');
+            } else if (event.error !== 'aborted') {
+              UI.toast('No se pudo analizar el audio. Puedes intentar de nuevo o usar Autoevaluación.');
+            }
+          };
+
+          rec.onend = () => {
+            this.isRecording = false;
+            this.activeItemId = null;
+            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+              try { this.mediaRecorder.stop(); } catch (e) {}
+            } else {
+              this.cleanupStream();
+            }
+            if (!gotResult && !this.fallbackMode) {
+              // Refrescar vista limpiamente
+            }
+            App.renderCurrentView();
+          };
+
+          rec.start();
+        } catch (err) {
+          console.error('Error iniciando reconocimiento:', err);
+          this.stopRecording();
+          this.fallbackMode = true;
+          this.fallbackReason = 'No fue posible iniciar el reconocimiento en este dispositivo. Usa el modo Autoevaluación.';
+          App.renderCurrentView();
+        }
+      },
+
+      stopRecording() {
+        this.isRecording = false;
+        this.activeItemId = null;
+        if (this.recognition) {
+          try { this.recognition.stop(); } catch (e) {}
+        }
+        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+          try { this.mediaRecorder.stop(); } catch (e) {}
+        } else {
+          this.cleanupStream();
+        }
+        App.renderCurrentView();
+      },
+
+      cleanupStream() {
+        if (this.mediaStream) {
+          this.mediaStream.getTracks().forEach(t => t.stop());
+          this.mediaStream = null;
+        }
+      },
+
+      playUserRecording(itemId) {
+        const url = this.recordings[itemId];
+        if (!url) return;
+        const audio = new Audio(url);
+        audio.play().catch(() => UI.toast('No se pudo reproducir tu grabación.'));
+      },
+
+      selfEvaluate(itemId, score, label) {
+        const prev = State.data.pronunciationScores[itemId] || 0;
+        State.data.pronunciationScores[itemId] = Math.max(prev, score);
+        State.save();
+        this.lastResults[itemId] = {
+          transcript: '(Autoevaluación manual)',
+          score,
+          feedback: score >= 90
+            ? '¡Excelente autoevaluación! Sigue practicando en voz alta.'
+            : score >= 75
+              ? '¡Buen avance! Repite una vez más comparando con el modelo.'
+              : 'Escucha la velocidad lenta (0.6x) e inténtalo de nuevo.'
+        };
+        UI.toast(`Calificación guardada: ${label} (${score}/100)`);
+        App.renderCurrentView();
+      }
+    };
+
+    /* =========================================================================
+       6. CONTROLADOR DE QUIZZES SEMANALES
+       ========================================================================= */
+    const QuizController = {
+      weekId: null,
+      index: 0,
+      scoreCount: 0,
+      selectedOption: null,
+      finished: false,
+
+      start(weekId) {
+        this.weekId = weekId;
+        this.index = 0;
+        this.scoreCount = 0;
+        this.selectedOption = null;
+        this.finished = false;
+        App.renderCurrentView();
+      },
+
+      select(optionIdx) {
+        if (this.selectedOption !== null) return;
+        const week = COURSE_DATA.weeks.find(w => w.id === this.weekId);
+        const q = week.quiz[this.index];
+        this.selectedOption = optionIdx;
+        if (optionIdx === q.answer) {
+          this.scoreCount++;
+        }
+        App.renderCurrentView();
+      },
+
+      next() {
+        const week = COURSE_DATA.weeks.find(w => w.id === this.weekId);
+        if (this.index + 1 < week.quiz.length) {
+          this.index++;
+          this.selectedOption = null;
+        } else {
+          this.finished = true;
+          const pct = Math.round((this.scoreCount / week.quiz.length) * 100);
+          const prevBest = State.data.quizBestScores[this.weekId] || 0;
+          if (pct >= prevBest) {
+            State.data.quizBestScores[this.weekId] = pct;
+            State.save();
+          }
+        }
+        App.renderCurrentView();
+      }
+    };
+
+    /* =========================================================================
+       7. UTILIDADES DE INTERFAZ (Toasts & Helpers)
+       ========================================================================= */
+    const UI = {
+      toast(msg) {
+        const container = document.getElementById('toast-container');
+        const el = document.createElement('div');
+        el.className = 'bg-indigojp text-white text-xs sm:text-sm font-medium px-4 py-2.5 rounded-xl shadow-lg fade-in';
+        el.textContent = msg;
+        container.appendChild(el);
+        setTimeout(() => {
+          el.style.opacity = '0';
+          el.style.transition = 'opacity 0.25s ease';
+          setTimeout(() => el.remove(), 250);
+        }, 2400);
+      },
+
+      romajiSpan(text, extraClass = '') {
+        if (!State.data.showRomaji) return '';
+        return `<span class="text-slate-500 font-medium ${extraClass}">${text}</span>`;
+      },
+
+      scoreBadgeColor(score) {
+        if (score === null || typeof score === 'undefined') return 'bg-slate-100 text-slate-500';
+        if (score >= 85) return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+        if (score >= 60) return 'bg-amber-50 text-amber-700 border border-amber-200';
+        return 'bg-vermilion-light text-vermilion border border-vermilion/20';
+      }
+    };
+
+    /* =========================================================================
+       8. APLICACIÓN PRINCIPAL Y RENDERIZADO DE VISTAS
+       ========================================================================= */
+    const App = {
+      view: 'dashboard', // 'dashboard' | 'week'
+      currentWeekId: 1,
+      currentTab: 'writing', // 'writing' | 'grammar' | 'pronunciation' | 'quiz'
+      selectedCharIdx: 0,
+
+      init() {
+        State.load();
+        SpeechEngine.init();
+        PronunciationEngine.checkSupport();
+        this.updateHeaderControls();
+        this.renderCurrentView();
+
+        window.addEventListener('resize', () => {
+          if (this.view === 'week' && this.currentTab === 'writing') {
+            CanvasController.resize();
+            CanvasController.redraw();
+          }
+        });
+      },
+
+      updateHeaderControls() {
+        const backBtn = document.getElementById('btn-back-dashboard');
+        if (this.view === 'week') {
+          backBtn.classList.remove('hidden');
+          backBtn.classList.add('inline-flex');
+        } else {
+          backBtn.classList.add('hidden');
+          backBtn.classList.remove('inline-flex');
+        }
+
+        const dot = document.getElementById('romaji-dot');
+        const label = document.getElementById('romaji-label');
+        if (State.data.showRomaji) {
+          dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+          label.textContent = 'Romaji: ON';
+        } else {
+          dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-300';
+          label.textContent = 'Romaji: OFF';
+        }
+      },
+
+      toggleRomaji() {
+        State.data.showRomaji = !State.data.showRomaji;
+        State.save();
+        this.updateHeaderControls();
+        this.renderCurrentView();
+        UI.toast(State.data.showRomaji ? 'Romaji visible' : 'Romaji oculto — ¡modo lectura pura!');
+      },
+
+      goDashboard() {
+        if (PronunciationEngine.isRecording) PronunciationEngine.stopRecording();
+        this.view = 'dashboard';
+        this.updateHeaderControls();
+        this.renderCurrentView();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+
+      openWeek(weekId, tab = 'writing') {
+        if (PronunciationEngine.isRecording) PronunciationEngine.stopRecording();
+        this.view = 'week';
+        this.currentWeekId = weekId;
+        this.currentTab = tab;
+        this.selectedCharIdx = 0;
+        if (QuizController.weekId !== weekId) {
+          QuizController.weekId = weekId;
+          QuizController.index = 0;
+          QuizController.scoreCount = 0;
+          QuizController.selectedOption = null;
+          QuizController.finished = false;
+        }
+        this.updateHeaderControls();
+        this.renderCurrentView();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+
+      switchTab(tab) {
+        if (PronunciationEngine.isRecording) PronunciationEngine.stopRecording();
+        this.currentTab = tab;
+        this.renderCurrentView();
+      },
+
+      selectChar(idx) {
+        this.selectedCharIdx = idx;
+        this.renderCurrentView();
+      },
+
+      stepChar(delta) {
+        const week = COURSE_DATA.weeks.find(w => w.id === this.currentWeekId);
+        const next = this.selectedCharIdx + delta;
+        if (next >= 0 && next < week.characters.length) {
+          this.selectedCharIdx = next;
+          this.renderCurrentView();
+        }
+      },
+
+      toggleCharPracticed(charId) {
+        if (State.data.practicedChars[charId]) {
+          delete State.data.practicedChars[charId];
+          UI.toast('Carácter desmarcado');
+        } else {
+          State.data.practicedChars[charId] = true;
+          UI.toast('¡Carácter marcado como practicado!');
+        }
+        State.save();
+        this.renderCurrentView();
+      },
+
+      toggleGrammarComplete(grammarId) {
+        if (State.data.completedGrammar[grammarId]) {
+          delete State.data.completedGrammar[grammarId];
+        } else {
+          State.data.completedGrammar[grammarId] = true;
+          UI.toast('¡Lección de gramática completada!');
+        }
+        State.save();
+        this.renderCurrentView();
+      },
+
+      toggleFallbackMode() {
+        PronunciationEngine.fallbackMode = !PronunciationEngine.fallbackMode;
+        this.renderCurrentView();
+      },
+
+      openResetModal() {
+        const modal = document.getElementById('reset-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      },
+
+      closeResetModal() {
+        const modal = document.getElementById('reset-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      },
+
+      confirmResetProgress() {
+        State.reset();
+        PronunciationEngine.lastResults = {};
+        PronunciationEngine.recordings = {};
+        this.closeResetModal();
+        this.updateHeaderControls();
+        this.goDashboard();
+        UI.toast('Progreso reiniciado por completo.');
+      },
+
+      renderCurrentView() {
+        const root = document.getElementById('app-root');
+        if (this.view === 'dashboard') {
+          root.innerHTML = this.renderDashboard();
+        } else {
+          root.innerHTML = this.renderWeekView();
+          if (this.currentTab === 'writing') {
+            const week = COURSE_DATA.weeks.find(w => w.id === this.currentWeekId);
+            const charObj = week.characters[this.selectedCharIdx];
+            requestAnimationFrame(() => CanvasController.mount(charObj.char));
+          }
+        }
+      },
+
+      /* -------------------- RENDER: DASHBOARD PRINCIPAL -------------------- */
+      renderDashboard() {
+        const g = State.getGlobalMetrics();
+
+        const weekCardsHtml = COURSE_DATA.weeks.map(week => {
+          const m = State.getWeekMetrics(week.id);
+          return `
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-card hover:shadow-soft transition p-5 sm:p-6 flex flex-col justify-between gap-4">
+              <div>
+                <div class="flex items-start justify-between gap-3 mb-3">
+                  <div class="flex items-center gap-2.5">
+                    <span class="px-2.5 py-1 rounded-lg bg-indigojp-light text-indigojp font-bold text-xs tracking-wide uppercase">Semana ${week.id}</span>
+                    <span class="font-jp text-xs font-bold text-vermilion bg-vermilion-light px-2.5 py-1 rounded-lg">${week.badge}</span>
+                  </div>
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ${UI.scoreBadgeColor(m.grade)}">
+                    ${m.grade !== null ? `Nota: ${m.grade}%` : 'Sin nota'}
+                  </span>
+                </div>
+
+                <h3 class="text-lg font-extrabold text-indigojp leading-snug mb-1.5">${week.shortTitle}</h3>
+                <p class="text-sm text-slate-600 leading-relaxed mb-4">${week.subtitle}</p>
+
+                <!-- Barra de avance semanal -->
+                <div class="mb-4">
+                  <div class="flex justify-between text-xs font-semibold mb-1.5">
+                    <span class="text-slate-500">Avance de la semana</span>
+                    <span class="text-indigojp">${m.progress}%</span>
+                  </div>
+                  <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-vermilion rounded-full transition-all duration-500" style="width: ${m.progress}%"></div>
+                  </div>
+                </div>
+
+                <!-- Mini métricas -->
+                <div class="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                  <div class="bg-slate-50 rounded-xl px-3 py-2 flex items-center justify-between">
+                    <span>✍️ Kana</span>
+                    <strong class="text-indigojp">${m.charsDone}/${m.charsTotal}</strong>
+                  </div>
+                  <div class="bg-slate-50 rounded-xl px-3 py-2 flex items-center justify-between">
+                    <span>📖 Gramática</span>
+                    <strong class="text-indigojp">${m.grammarDone}/${m.grammarTotal}</strong>
+                  </div>
+                  <div class="bg-slate-50 rounded-xl px-3 py-2 flex items-center justify-between">
+                    <span>🎙️ Voz</span>
+                    <strong class="text-indigojp">${m.pronDone}/${m.pronTotal}</strong>
+                  </div>
+                  <div class="bg-slate-50 rounded-xl px-3 py-2 flex items-center justify-between">
+                    <span>📝 Quiz</span>
+                    <strong class="text-indigojp">${m.quizScore !== null ? m.quizScore + '%' : '—'}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <button onclick="App.openWeek(${week.id}, 'writing')" class="w-full py-3 px-4 rounded-xl bg-indigojp hover:bg-indigojp-dark active:scale-[0.98] text-white font-semibold text-sm flex items-center justify-center gap-2 transition">
+                <span>${m.progress > 0 ? 'Continuar Semana ' + week.id : 'Comenzar Semana ' + week.id}</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="space-y-6 fade-in">
+            <!-- Hero y Métricas Globales -->
+            <section class="bg-indigojp text-white rounded-3xl p-6 sm:p-8 shadow-soft relative overflow-hidden">
+              <div class="absolute -right-8 -top-8 w-44 h-44 rounded-full bg-vermilion/20 blur-2xl pointer-events-none"></div>
+              <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div class="max-w-xl">
+                  <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-white/90 mb-3">
+                    <span class="font-jp">ようこそ</span> · Plan intensivo de 4 semanas (sin Kanji)
+                  </div>
+                  <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">Domina Hiragana, Katakana y japonés base</h2>
+                  <p class="text-sm sm:text-base text-slate-200 leading-relaxed">
+                    Practica trazos con tu dedo o Apple Pencil, entrena tu pronunciación en voz alta y construye tus primeras frases reales en japonés.
+                  </p>
+                </div>
+
+                <!-- Calificación Promedio General -->
+                <div class="bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl p-4 sm:p-5 min-w-[190px] text-center shrink-0">
+                  <p class="text-xs uppercase tracking-wider text-slate-200 font-semibold mb-1">Promedio General</p>
+                  <div class="text-4xl font-extrabold text-white mb-1">
+                    ${g.globalGrade !== null ? `${g.globalGrade}<span class="text-xl text-vermilion-light">%</span>` : '—'}
+                  </div>
+                  <p class="text-[11px] text-slate-300">Quizzes + Pronunciación</p>
+                </div>
+              </div>
+
+              <!-- Barra de Progreso Global -->
+              <div class="relative z-10 mt-6 pt-5 border-t border-white/15">
+                <div class="flex items-center justify-between text-xs sm:text-sm font-semibold mb-2">
+                  <span>Progreso Global del Curso</span>
+                  <span>${g.globalProgress}% completado</span>
+                </div>
+                <div class="w-full h-3 bg-white/15 rounded-full overflow-hidden">
+                  <div class="h-full bg-vermilion rounded-full transition-all duration-500" style="width: ${g.globalProgress}%"></div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 mt-4 text-center sm:text-left">
+                  <div class="bg-white/5 rounded-xl px-3 py-2.5">
+                    <div class="text-xs text-slate-300">Kana practicados</div>
+                    <div class="text-base sm:text-lg font-bold">${g.doneChars} / ${g.totalChars}</div>
+                  </div>
+                  <div class="bg-white/5 rounded-xl px-3 py-2.5">
+                    <div class="text-xs text-slate-300">Frases evaluadas</div>
+                    <div class="text-base sm:text-lg font-bold">${g.donePron} / ${g.totalPron}</div>
+                  </div>
+                  <div class="bg-white/5 rounded-xl px-3 py-2.5">
+                    <div class="text-xs text-slate-300">Quizzes hechos</div>
+                    <div class="text-base sm:text-lg font-bold">${g.quizzesDone} / 4</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Encabezado de Semanas + Reiniciar -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <div>
+                <h2 class="text-xl font-extrabold text-indigojp">Plan de Estudio (4 Semanas)</h2>
+                <p class="text-sm text-slate-500">Todas las semanas están desbloqueadas para que avances a tu ritmo.</p>
+              </div>
+              <button onclick="App.openResetModal()" class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-vermilion-light hover:text-vermilion hover:border-vermilion/30 text-slate-600 text-xs font-semibold transition">
+                ↺ Reiniciar progreso
+              </button>
+            </div>
+
+            <!-- Grid 2x2 de Semanas (ideal para iPad) -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              ${weekCardsHtml}
+            </section>
+          </div>
+        `;
+      },
+
+      /* -------------------- RENDER: VISTA SEMANAL -------------------- */
+      renderWeekView() {
+        const week = COURSE_DATA.weeks.find(w => w.id === this.currentWeekId);
+        const metrics = State.getWeekMetrics(week.id);
+
+        const tabs = [
+          { id: 'writing', icon: '✍️', label: 'Escritura y Trazos' },
+          { id: 'grammar', icon: '📖', label: 'Gramática y Frases' },
+          { id: 'pronunciation', icon: '🎙️', label: 'Pronunciación' },
+          { id: 'quiz', icon: '📝', label: 'Quiz Semanal' },
+        ];
+
+        const tabsHtml = tabs.map(t => {
+          const active = this.currentTab === t.id;
+          return `
+            <button onclick="App.switchTab('${t.id}')" class="flex-1 min-w-[140px] py-3 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition whitespace-nowrap ${
+              active
+                ? 'bg-indigojp text-white shadow-sm'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+            }">
+              <span>${t.icon}</span>
+              <span>${t.label}</span>
+            </button>
+          `;
+        }).join('');
+
+        let tabContent = '';
+        if (this.currentTab === 'writing') tabContent = this.renderWritingTab(week);
+        else if (this.currentTab === 'grammar') tabContent = this.renderGrammarTab(week);
+        else if (this.currentTab === 'pronunciation') tabContent = this.renderPronunciationTab(week);
+        else if (this.currentTab === 'quiz') tabContent = this.renderQuizTab(week);
+
+        return `
+          <div class="space-y-5 fade-in">
+            <!-- Encabezado de Semana -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-card">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-bold uppercase tracking-wider text-vermilion">Semana ${week.id} de 4</span>
+                    <span class="text-slate-300">•</span>
+                    <span class="font-jp text-xs font-bold text-indigojp">${week.badge}</span>
+                  </div>
+                  <h2 class="text-xl sm:text-2xl font-extrabold text-indigojp">${week.title}</h2>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                  <div class="text-right">
+                    <div class="text-xs text-slate-500 font-medium">Avance semanal</div>
+                    <div class="text-base font-extrabold text-indigojp">${metrics.progress}%</div>
+                  </div>
+                  <div class="w-24 h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-vermilion rounded-full transition-all" style="width:${metrics.progress}%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4 Pestañas Interactivas -->
+            <nav class="flex gap-2 overflow-x-auto no-scrollbar pb-1" aria-label="Módulos de la semana">
+              ${tabsHtml}
+            </nav>
+
+            <!-- Contenido de la Pestaña -->
+            <div>${tabContent}</div>
+          </div>
+        `;
+      },
+
+      /* -------------------- PESTAÑA 1: ESCRITURA Y TRAZOS -------------------- */
+      renderWritingTab(week) {
+        const charObj = week.characters[this.selectedCharIdx];
+        const isPracticed = !!State.data.practicedChars[charObj.id];
+
+        const selectorGrid = week.characters.map((c, idx) => {
+          const active = idx === this.selectedCharIdx;
+          const done = !!State.data.practicedChars[c.id];
+          return `
+            <button onclick="App.selectChar(${idx})" class="relative h-14 rounded-xl flex flex-col items-center justify-center transition active:scale-95 ${
+              active
+                ? 'bg-indigojp text-white ring-2 ring-vermilion ring-offset-1 shadow-sm'
+                : done
+                  ? 'bg-emerald-50 text-indigojp border border-emerald-200 hover:bg-emerald-100'
+                  : 'bg-slate-50 text-indigojp border border-slate-200/80 hover:bg-slate-100'
+            }">
+              <span class="font-jp text-xl font-bold leading-none">${c.char}</span>
+              ${State.data.showRomaji ? `<span class="text-[10px] font-semibold mt-0.5 ${active ? 'text-slate-200' : 'text-slate-500'}">${c.romaji}</span>` : ''}
+              ${done ? `<span class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full ${active ? 'bg-emerald-300' : 'bg-emerald-500'}"></span>` : ''}
+            </button>
+          `;
+        }).join('');
+
+        // Tabla extra Semana 2: Dakuten, Handakuten y Yōon
+        let extraSection = '';
+        if (week.hasDakutenChart) {
+          const dakutenCells = COURSE_DATA.dakutenTable.map(d => `
+            <button onclick="SpeechEngine.speak('${d.daku}', 0.85)" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigojp-light active:scale-95 text-center transition">
+              <div class="font-jp text-xl font-bold text-indigojp">${d.daku}</div>
+              ${State.data.showRomaji ? `<div class="text-[11px] font-semibold text-vermilion">${d.romaji}</div>` : ''}
+              <div class="text-[10px] text-slate-400 font-jp">(${d.base})</div>
+            </button>
+          `).join('');
+
+          const yoonCells = COURSE_DATA.yoonTable.map(y => `
+            <button onclick="SpeechEngine.speak('${y.kana}', 0.85)" class="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigojp-light active:scale-95 text-center transition">
+              <div class="font-jp text-lg font-bold text-indigojp">${y.kana}</div>
+              ${State.data.showRomaji ? `<div class="text-[11px] font-semibold text-slate-500">${y.romaji}</div>` : ''}
+            </button>
+          `).join('');
+
+          extraSection = `
+            <section class="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-card space-y-5 mt-5">
+              <div>
+                <h3 class="text-lg font-extrabold text-indigojp">Tabla Interactiva: Dakuten (゛), Handakuten (゜) y Combinaciones</h3>
+                <p class="text-sm text-slate-600 mt-1">Toca cualquier carácter para escuchar su pronunciación nativa en japonés.</p>
+              </div>
+              <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-vermilion mb-2.5">Sonidos modificados (Dakuten y Handakuten)</h4>
+                <div class="grid grid-cols-5 gap-2">${dakutenCells}</div>
+              </div>
+              <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-indigojp mb-2.5">Sonidos combinados (Yōon: ゃ, ゅ, ょ)</h4>
+                <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">${yoonCells}</div>
+              </div>
+            </section>
+          `;
+        }
+
+        // Sección extra Semana 4: Lectura de palabras reales en Katakana
+        if (week.hasLoanwordsChart) {
+          const loanCards = COURSE_DATA.katakanaLoanwords.map(w => `
+            <button onclick="SpeechEngine.speak('${w.jp}', 0.9)" class="p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigojp-light active:scale-[0.98] text-left flex items-center justify-between gap-2 transition">
+              <div>
+                <div class="font-jp text-lg font-bold text-indigojp">${w.jp}</div>
+                <div class="text-xs text-slate-600">${w.es} ${State.data.showRomaji ? `<span class="text-slate-400">· ${w.romaji}</span>` : ''}</div>
+              </div>
+              <span class="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-indigojp shrink-0">🔊</span>
+            </button>
+          `).join('');
+
+          extraSection = `
+            <section class="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-card space-y-4 mt-5">
+              <div>
+                <h3 class="text-lg font-extrabold text-indigojp">Práctica de Lectura Real en Katakana</h3>
+                <p class="text-sm text-slate-600 mt-1">Intenta leer estas palabras extranjeras (apaga el Romaji arriba para retarte) y tócalas para confirmar el audio.</p>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">${loanCards}</div>
+            </section>
+          `;
+        }
+
+        return `
+          <div class="space-y-5">
+            <!-- Layout de 2 columnas en iPad/Desktop: Selector + Lienzo -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              <!-- Columna Izquierda: Selector de Caracteres -->
+              <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-card">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-sm font-extrabold text-indigojp">Caracteres de la Semana (${week.characters.length})</h3>
+                  <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                    ${week.characters.filter(c => State.data.practicedChars[c.id]).length}/${week.characters.length} practicados
+                  </span>
+                </div>
+                <div class="grid grid-cols-5 gap-2">
+                  ${selectorGrid}
+                </div>
+              </div>
+
+              <!-- Columna Derecha: Lienzo Táctil y Mnemotecnia -->
+              <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-card">
+                <!-- Info del carácter + Navegación -->
+                <div class="flex items-center justify-between gap-3 mb-4">
+                  <div class="flex items-center gap-3">
+                    <div class="w-16 h-16 rounded-2xl bg-indigojp-light border border-indigojp/15 flex items-center justify-center font-jp text-4xl font-bold text-indigojp">
+                      ${charObj.char}
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-2xl font-extrabold text-vermilion">${charObj.romaji}</span>
+                        <span class="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">${charObj.row} · ${charObj.strokes} ${charObj.strokes === 1 ? 'trazo' : 'trazos'}</span>
+                      </div>
+                      <p class="text-xs sm:text-sm text-slate-600 mt-0.5 font-jp">${charObj.example}</p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-1.5">
+                    <button onclick="App.stepChar(-1)" ${this.selectedCharIdx === 0 ? 'disabled' : ''} class="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-indigojp hover:bg-slate-100 disabled:opacity-35 transition" aria-label="Anterior">
+                      ◀
+                    </button>
+                    <button onclick="App.stepChar(1)" ${this.selectedCharIdx === week.characters.length - 1 ? 'disabled' : ''} class="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-indigojp hover:bg-slate-100 disabled:opacity-35 transition" aria-label="Siguiente">
+                      ▶
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Truco Visual / Mnemotecnia -->
+                <div class="bg-washi border border-amber-200/70 rounded-xl p-3.5 mb-4">
+                  <div class="text-xs font-bold text-amber-800 uppercase tracking-wide mb-0.5">💡 Truco visual en español</div>
+                  <p class="text-sm text-slate-700 leading-relaxed">${charObj.mnemonic}</p>
+                </div>
+
+                <!-- Botones de Audio Nativo (Normal 1.0 y Lento 0.6) -->
+                <div class="flex flex-wrap gap-2 mb-4">
+                  <button onclick="SpeechEngine.speak('${charObj.char}', 1.0)" class="flex-1 min-w-[140px] py-2.5 px-4 rounded-xl bg-indigojp-light hover:bg-indigojp hover:text-white text-indigojp font-semibold text-sm flex items-center justify-center gap-2 transition active:scale-95">
+                    <span>🔊</span> Escuchar Normal (1.0x)
+                  </button>
+                  <button onclick="SpeechEngine.speak('${charObj.char}', 0.6)" class="flex-1 min-w-[140px] py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-indigojp font-semibold text-sm flex items-center justify-center gap-2 transition active:scale-95">
+                    <span>🐢</span> Escuchar Lento (0.6x)
+                  </button>
+                </div>
+
+                <!-- Lienzo HTML5 Táctil -->
+                <div class="flex flex-col items-center">
+                  <div class="canvas-container w-full max-w-[360px] aspect-square rounded-2xl border-2 border-indigojp/20 shadow-inner flex items-center justify-center overflow-hidden">
+                    <canvas id="drawing-canvas"></canvas>
+                  </div>
+                  <p class="text-[11px] text-slate-400 mt-2">Dibuja directamente con tu dedo, Apple Pencil o mouse</p>
+                </div>
+
+                <!-- Controles del Lienzo -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-4">
+                  <button id="btn-toggle-ghost" onclick="CanvasController.toggleGhost()" class="py-2.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs sm:text-sm font-semibold text-indigojp transition">
+                    ${CanvasController.showGhost ? '👁️ Ocultar guía' : '👁️ Mostrar guía'}
+                  </button>
+                  <button onclick="CanvasController.undo()" class="py-2.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs sm:text-sm font-semibold text-indigojp transition">
+                    ↩️ Deshacer
+                  </button>
+                  <button onclick="CanvasController.clear()" class="col-span-2 sm:col-span-1 py-2.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-vermilion-light hover:text-vermilion text-xs sm:text-sm font-semibold text-slate-700 transition">
+                    🧹 Borrar lienzo
+                  </button>
+                </div>
+
+                <!-- Botón Marcar como Practicado -->
+                <button onclick="App.toggleCharPracticed('${charObj.id}')" class="w-full mt-3 py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition active:scale-[0.98] ${
+                  isPracticed
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-vermilion hover:bg-vermilion-dark text-white'
+                }">
+                  ${isPracticed ? '✅ Carácter Practicado (toca para desmarcar)' : '✓ Marcar como Practicado'}
+                </button>
+              </div>
+            </div>
+
+            ${extraSection}
+          </div>
+        `;
+      },
+
+      /* -------------------- PESTAÑA 2: GRAMÁTICA Y FRASES -------------------- */
+      renderGrammarTab(week) {
+        const cardsHtml = week.grammar.map(g => {
+          const done = !!State.data.completedGrammar[g.id];
+          const examplesHtml = g.examples.map(ex => {
+            const safeAudio = ex.jp.replace(/'/g, "\\'");
+            return `
+              <div class="bg-washi border border-slate-200/70 rounded-xl p-3.5 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="font-jp text-base sm:text-lg font-bold text-indigojp leading-snug">${ex.jp}</div>
+                  ${State.data.showRomaji ? `<div class="text-xs sm:text-sm font-medium text-vermilion mt-0.5">${ex.romaji}</div>` : ''}
+                  <div class="text-xs sm:text-sm text-slate-600 mt-0.5">${ex.es}</div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button onclick="SpeechEngine.speak('${safeAudio}', 0.95)" class="w-10 h-10 rounded-xl bg-white border border-slate-200 hover:bg-indigojp hover:text-white text-indigojp flex items-center justify-center transition active:scale-95" title="Escuchar normal">
+                    🔊
+                  </button>
+                  <button onclick="SpeechEngine.speak('${safeAudio}', 0.6)" class="w-10 h-10 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition active:scale-95 text-sm" title="Escuchar lento">
+                    🐢
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          return `
+            <article class="bg-white rounded-2xl border ${done ? 'border-emerald-200' : 'border-slate-200/80'} p-5 sm:p-6 shadow-card space-y-4">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-lg sm:text-xl font-extrabold text-indigojp">${g.title}</h3>
+                  <p class="text-sm font-semibold text-vermilion mt-1">${g.summary}</p>
+                </div>
+                <button onclick="App.toggleGrammarComplete('${g.id}')" class="px-3.5 py-2 rounded-xl text-xs font-bold transition active:scale-95 ${
+                  done
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-slate-100 text-slate-600 hover:bg-indigojp hover:text-white'
+                }">
+                  ${done ? '✅ Completado' : 'Marcar como estudiado'}
+                </button>
+              </div>
+
+              <p class="text-sm text-slate-700 leading-relaxed bg-indigojp-light/50 rounded-xl p-4 border border-indigojp/10">
+                ${g.explanation}
+              </p>
+
+              <div class="space-y-2.5">
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-400">Ejemplos con audio nativo</div>
+                ${examplesHtml}
+              </div>
+            </article>
+          `;
+        }).join('');
+
+        return `
+          <div class="space-y-5">
+            <!-- Barra de control rápido de Romaji -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-4 flex flex-wrap items-center justify-between gap-3 shadow-card">
+              <div class="text-sm text-slate-700">
+                <strong class="text-indigojp">Reto de lectura:</strong> Oculta el Romaji para entrenar tu lectura real en Hiragana y Katakana.
+              </div>
+              <button onclick="App.toggleRomaji()" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition ${
+                State.data.showRomaji
+                  ? 'bg-indigojp text-white hover:bg-indigojp-dark'
+                  : 'bg-vermilion text-white hover:bg-vermilion-dark'
+              }">
+                ${State.data.showRomaji ? '🙈 Ocultar Romaji' : '👁️ Mostrar Romaji'}
+              </button>
+            </div>
+
+            ${cardsHtml}
+          </div>
+        `;
+      },
+
+      /* -------------------- PESTAÑA 3: EVALUADOR DE PRONUNCIACIÓN -------------------- */
+      renderPronunciationTab(week) {
+        const isFallback = PronunciationEngine.fallbackMode;
+
+        const bannerHtml = isFallback
+          ? `
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="text-sm text-amber-900">
+                <div class="font-bold mb-0.5">🎙️ Modo Autoevaluación Activo</div>
+                <p class="text-xs sm:text-sm text-amber-800">${PronunciationEngine.fallbackReason || 'Escucha el modelo nativo, repítelo en voz alta y califica tu desempeño manualmente.'}</p>
+              </div>
+              ${(window.SpeechRecognition || window.webkitSpeechRecognition) ? `
+                <button onclick="App.toggleFallbackMode()" class="px-3.5 py-2 rounded-xl bg-white border border-amber-300 text-amber-900 font-semibold text-xs shrink-0 hover:bg-amber-100 transition">
+                  Intentar con Micrófono
+                </button>
+              ` : ''}
+            </div>
+          `
+          : `
+            <div class="bg-indigojp-light/60 border border-indigojp/15 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="text-sm text-indigojp">
+                <div class="font-bold mb-0.5">🎙️ Evaluador de Pronunciación (ja-JP)</div>
+                <p class="text-xs sm:text-sm text-slate-600">1) Escucha el modelo nativo · 2) Pulsa <strong>Grabar y Evaluar</strong> y habla claro · 3) Compara tu audio y revisa tu puntaje (0–100).</p>
+              </div>
+              <button onclick="App.toggleFallbackMode()" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 font-semibold text-xs shrink-0 hover:bg-slate-100 transition">
+                Cambiar a Autoevaluación
+              </button>
+            </div>
+          `;
+
+        const itemsHtml = week.pronunciation.map(item => {
+          const bestScore = State.data.pronunciationScores[item.id];
+          const lastRes = PronunciationEngine.lastResults[item.id];
+          const hasRecording = !!PronunciationEngine.recordings[item.id];
+          const recordingThis = PronunciationEngine.isRecording && PronunciationEngine.activeItemId === item.id;
+          const safeAudio = item.kana.replace(/'/g, "\\'");
+
+          return `
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-card space-y-4">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div class="font-jp text-xl sm:text-2xl font-bold text-indigojp">${item.kana}</div>
+                  ${State.data.showRomaji ? `<div class="text-sm font-semibold text-vermilion mt-0.5">${item.romaji}</div>` : ''}
+                  <div class="text-sm text-slate-600 mt-0.5">${item.meaning}</div>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl text-xs font-extrabold ${UI.scoreBadgeColor(bestScore)}">
+                  ${typeof bestScore === 'number' ? `Mejor: ${bestScore}/100` : 'Pendiente'}
+                </div>
+              </div>
+
+              <!-- Consejo de pronunciación -->
+              <div class="text-xs text-slate-600 bg-washi rounded-xl px-3.5 py-2.5 border border-slate-200/60">
+                <strong class="text-indigojp">💡 Tip:</strong> ${item.tip}
+              </div>
+
+              <!-- Controles de Audio Modelo y Evaluación -->
+              <div class="flex flex-wrap items-center gap-2.5">
+                <button onclick="SpeechEngine.speak('${safeAudio}', 0.95)" class="py-2.5 px-4 rounded-xl bg-indigojp-light hover:bg-indigojp hover:text-white text-indigojp font-semibold text-xs sm:text-sm flex items-center gap-1.5 transition active:scale-95">
+                  <span>🔊</span> Modelo (1.0x)
+                </button>
+                <button onclick="SpeechEngine.speak('${safeAudio}', 0.6)" class="py-2.5 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-indigojp font-semibold text-xs sm:text-sm flex items-center gap-1.5 transition active:scale-95">
+                  <span>🐢</span> Lento (0.6x)
+                </button>
+
+                ${!isFallback ? `
+                  <button onclick="PronunciationEngine.toggleRecording(${week.id}, '${item.id}')" class="py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 transition active:scale-95 ${
+                    recordingThis
+                      ? 'bg-vermilion text-white recording-pulse'
+                      : 'bg-vermilion hover:bg-vermilion-dark text-white'
+                  }">
+                    <span>${recordingThis ? '⏹️ Detener (Escuchando...)' : '🎙️ Grabar y Evaluar'}</span>
+                  </button>
+                ` : ''}
+
+                ${hasRecording ? `
+                  <button onclick="PronunciationEngine.playUserRecording('${item.id}')" class="py-2.5 px-4 rounded-xl border border-indigojp/20 bg-white hover:bg-indigojp-light text-indigojp font-semibold text-xs sm:text-sm flex items-center gap-1.5 transition active:scale-95">
+                    <span>▶️</span> Escuchar mi voz
+                  </button>
+                ` : ''}
+              </div>
+
+              <!-- Fallback de Autoevaluación -->
+              ${isFallback ? `
+                <div class="pt-2 border-t border-slate-100">
+                  <div class="text-xs font-semibold text-slate-500 mb-2">Escucha el modelo, repítelo en voz alta y elige cómo te fue:</div>
+                  <div class="grid grid-cols-3 gap-2">
+                    <button onclick="PronunciationEngine.selfEvaluate('${item.id}', 55, 'Necesito repasar')" class="py-2.5 px-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-amber-50 text-xs font-bold text-slate-700 transition">
+                      🔄 Repasar (55)
+                    </button>
+                    <button onclick="PronunciationEngine.selfEvaluate('${item.id}', 82, 'Bien')" class="py-2.5 px-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigojp-light text-xs font-bold text-indigojp transition">
+                      👍 Bien (82)
+                    </button>
+                    <button onclick="PronunciationEngine.selfEvaluate('${item.id}', 100, 'Excelente')" class="py-2.5 px-2 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-800 transition">
+                      🌟 Excelente (100)
+                    </button>
+                  </div>
+                </div>
+              ` : ''}
+
+              <!-- Retroalimentación del último intento -->
+              ${lastRes ? `
+                <div class="rounded-xl p-3.5 border ${lastRes.score >= 75 ? 'bg-emerald-50/70 border-emerald-200' : 'bg-amber-50/70 border-amber-200'} space-y-1">
+                  <div class="flex items-center justify-between text-xs sm:text-sm">
+                    <span class="font-bold text-indigojp">Transcripción detectada: <span class="font-jp text-vermilion">${lastRes.transcript}</span></span>
+                    <span class="font-extrabold ${lastRes.score >= 75 ? 'text-emerald-700' : 'text-amber-800'}">${lastRes.score}/100</span>
+                  </div>
+                  <p class="text-xs sm:text-sm text-slate-700">${lastRes.feedback}</p>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="space-y-4">
+            ${bannerHtml}
+            <div class="grid grid-cols-1 gap-4">${itemsHtml}</div>
+          </div>
+        `;
+      },
+
+      /* -------------------- PESTAÑA 4: QUIZ SEMANAL -------------------- */
+      renderQuizTab(week) {
+        if (QuizController.weekId !== week.id) {
+          QuizController.weekId = week.id;
+          QuizController.index = 0;
+          QuizController.scoreCount = 0;
+          QuizController.selectedOption = null;
+          QuizController.finished = false;
+        }
+
+        const bestScore = State.data.quizBestScores[week.id];
+
+        // Vista de resultados finales
+        if (QuizController.finished) {
+          const total = week.quiz.length;
+          const pct = Math.round((QuizController.scoreCount / total) * 100);
+          const passed = pct >= 70;
+          return `
+            <div class="bg-white rounded-3xl border border-slate-200/80 p-7 sm:p-10 text-center max-w-xl mx-auto shadow-card space-y-5 fade-in">
+              <div class="w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl ${passed ? 'bg-emerald-50' : 'bg-vermilion-light'}">
+                ${passed ? '🎉' : '📚'}
+              </div>
+              <div>
+                <h3 class="text-2xl font-extrabold text-indigojp">${passed ? '¡Excelente trabajo!' : '¡Sigue practicando!'}</h3>
+                <p class="text-sm text-slate-600 mt-1">Completaste el Quiz de la Semana ${week.id}</p>
+              </div>
+              <div class="text-5xl font-extrabold ${passed ? 'text-emerald-600' : 'text-vermilion'}">
+                ${pct}%
+              </div>
+              <p class="text-sm font-semibold text-slate-700">
+                Respuestas correctas: ${QuizController.scoreCount} de ${total}
+                ${typeof bestScore === 'number' ? ` · Mejor puntaje guardado: <strong>${bestScore}%</strong>` : ''}
+              </p>
+              <div class="flex flex-wrap justify-center gap-3 pt-2">
+                <button onclick="QuizController.start(${week.id})" class="px-6 py-3 rounded-xl bg-indigojp hover:bg-indigojp-dark text-white font-bold text-sm transition active:scale-95">
+                  ↺ Repetir Quiz
+                </button>
+                <button onclick="App.goDashboard()" class="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-indigojp font-bold text-sm transition">
+                  Volver al Inicio
+                </button>
+              </div>
+            </div>
+          `;
+        }
+
+        const q = week.quiz[QuizController.index];
+        const total = week.quiz.length;
+        const answered = QuizController.selectedOption !== null;
+        const isCorrect = QuizController.selectedOption === q.answer;
+
+        const typeBadge = q.type === 'audio'
+          ? '🎧 Comprensión Auditiva'
+          : q.type === 'grammar'
+            ? '📖 Gramática'
+            : '👀 Lectura Kana';
+
+        const optionsHtml = q.options.map((opt, idx) => {
+          let cls = 'bg-white border-slate-200 hover:border-indigojp hover:bg-indigojp-light/40 text-indigojp';
+          if (answered) {
+            if (idx === q.answer) {
+              cls = 'bg-emerald-50 border-emerald-500 text-emerald-900 ring-1 ring-emerald-500';
+            } else if (idx === QuizController.selectedOption) {
+              cls = 'bg-vermilion-light border-vermilion text-vermilion-dark';
+            } else {
+              cls = 'bg-slate-50 border-slate-200 text-slate-400 opacity-70';
+            }
+          }
+          return `
+            <button onclick="QuizController.select(${idx})" ${answered ? 'disabled' : ''} class="w-full p-4 rounded-2xl border-2 font-jp font-bold text-base sm:text-lg text-left flex items-center justify-between gap-3 transition active:scale-[0.99] ${cls}">
+              <span>${opt}</span>
+              ${answered && idx === q.answer ? '<span class="text-emerald-600 text-lg">✓</span>' : ''}
+              ${answered && idx === QuizController.selectedOption && idx !== q.answer ? '<span class="text-vermilion text-lg">✕</span>' : ''}
+            </button>
+          `;
+        }).join('');
+
+        return `
+          <div class="max-w-2xl mx-auto bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-7 shadow-card space-y-5 fade-in">
+            <!-- Progreso del Quiz -->
+            <div class="flex items-center justify-between gap-3">
+              <span class="px-3 py-1 rounded-lg bg-indigojp-light text-indigojp text-xs font-bold">${typeBadge}</span>
+              <div class="text-xs font-bold text-slate-500">
+                Pregunta ${QuizController.index + 1} de ${total}
+                ${typeof bestScore === 'number' ? `<span class="ml-2 text-emerald-700">(Récord: ${bestScore}%)</span>` : ''}
+              </div>
+            </div>
+
+            <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full bg-vermilion rounded-full transition-all" style="width: ${((QuizController.index + (answered ? 1 : 0)) / total) * 100}%"></div>
+            </div>
+
+            <!-- Pregunta -->
+            <div class="text-center py-2 space-y-4">
+              <h3 class="text-base sm:text-lg font-bold text-indigojp">${q.prompt}</h3>
+
+              ${q.type === 'audio' ? `
+                <div class="flex justify-center gap-3">
+                  <button onclick="SpeechEngine.speak('${q.audioText.replace(/'/g, "\\'")}', 0.9)" class="px-6 py-4 rounded-2xl bg-indigojp hover:bg-indigojp-dark active:scale-95 text-white font-bold text-base flex items-center gap-2.5 shadow-soft transition">
+                    <span class="text-xl">🔊</span> Reproducir Audio
+                  </button>
+                  <button onclick="SpeechEngine.speak('${q.audioText.replace(/'/g, "\\'")}', 0.6)" class="px-4 py-4 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-indigojp font-bold text-sm transition" title="Escuchar más lento">
+                    🐢 Lento
+                  </button>
+                </div>
+              ` : `
+                <div class="inline-block px-7 py-4 rounded-2xl bg-washi border border-slate-200 font-jp text-3xl sm:text-4xl font-bold text-indigojp">
+                  ${q.target}
+                </div>
+              `}
+            </div>
+
+            <!-- Opciones -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              ${optionsHtml}
+            </div>
+
+            <!-- Retroalimentación Inmediata -->
+            ${answered ? `
+              <div class="rounded-2xl p-4 border ${isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-vermilion-light border-vermilion/30 text-vermilion-dark'} fade-in">
+                <div class="font-extrabold text-sm mb-1">${isCorrect ? '✅ ¡Correcto!' : '❌ Respuesta incorrecta'}</div>
+                <p class="text-xs sm:text-sm">${q.explanation}</p>
+              </div>
+              <button onclick="QuizController.next()" class="w-full py-3.5 rounded-xl bg-indigojp hover:bg-indigojp-dark text-white font-bold text-sm transition active:scale-[0.98]">
+                ${QuizController.index + 1 < total ? 'Siguiente Pregunta →' : 'Ver Resultados Finales'}
+              </button>
+            ` : ''}
+          </div>
+        `;
+      }
+    };
+
+    // Inicializar aplicación al cargar el DOM
+    document.addEventListener('DOMContentLoaded', () => App.init());
+  </script>
+</body>
+</html>
+
+Aspectos clave incluidos para iPad y enseñanza de japonés
+
+  - Lienzo táctil de precisión (Apple Pencil y dedo): Utiliza touch-action:
+    none, bloqueo explícito de touchstart/touchmove con { passive: false } para
+    evitar el scroll accidental en Safari de iPadOS, escalado automático para
+    pantallas Retina (devicePixelRatio), suavizado de curvas cuadráticas,
+    cuadrícula guía, carácter fantasma alternable y botón de deshacer trazo.
+  - Audio nativo inteligente (ja-JP): Gestiona la carga asíncrona con
+    onvoiceschanged, prioriza voces japonesas de alta calidad (como Kyoko en
+    iPadOS) y ofrece botones de velocidad normal (1.0x) y lenta (0.6x).
+  - Evaluador de pronunciación inteligente: Combina SpeechRecognition (ja-JP) y
+    MediaRecorder para que puedas escuchar tu propia grabación. Además, el
+    cálculo de similitud por distancia de Levenshtein incluye alias válidos en
+    Kanji/Kana (ya que el motor japonés de voz suele transcribir palabras como
+    わたしはがくせいです en Kanji 私は学生です), evitando falsos negativos, e incluye Modo
+    Autoevaluación automático si el navegador restringe el micrófono.
+  - Temario 100% completo sin placeholders: Los 46 Hiragana, tabla interactiva
+    con audio de dakuten/handakuten y combinaciones (yōon), los 46 Katakana, 12
+    palabras extranjeras reales, 15 lecciones de gramática con interruptor
+    global de Romaji, 24 ejercicios de pronunciación y 32 preguntas de quiz con
+    guardado automático en localStorage.
